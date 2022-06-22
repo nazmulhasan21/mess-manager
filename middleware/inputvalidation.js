@@ -22,7 +22,6 @@ exports.userinputvalidat = [
     })
     
     ,
-    body('password').trim().isLength({min: 8}),
+    body('password').trim().isLength({min: 8}).withMessage('password  min length 8.'),
     body('name').trim().isLength({min: 3}).withMessage('Plese name min length 3.'),
-    body('role').trim()
 ]
