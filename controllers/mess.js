@@ -74,6 +74,11 @@ exports.createMess = async (req, res, next) => {
 
 exports.getMess = async (req, res, next) => {
   try {
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
     const mess = await Mess.findById({ _id: req.userMessId })
       .populate('month')
       .populate('managerName', 'name');

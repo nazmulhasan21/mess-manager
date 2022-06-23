@@ -15,6 +15,8 @@ router.get('/all', isAuth, monthController.getAllMonth);
 router.put('/manager', isAuth, isAdmin, monthController.changeManager);
 router.post('/addMemberMoney', isAuth, isAdmin, monthController.addMemberMoney);
 router.post('/addMemberRich', isAuth, isAdmin, monthController.addMemberRich);
+router.get('/marketCost', isAuth, monthController.getMarketCost);
+router.get('/marketCost/:id', isAuth, monthController.getCost);
 router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
 router.put(
   '/marketCost/:id',
@@ -22,7 +24,7 @@ router.put(
   isAdmin,
   monthController.updateMarketCost
 );
-router.get('/marketCost', isAuth, monthController.getMarketCost);
+
 router.post('/dailyMeal', isAuth, monthController.addDailyBorderMeal);
 
 module.exports = router;

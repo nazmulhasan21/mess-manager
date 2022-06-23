@@ -1,14 +1,5 @@
 const mongoose = require('mongoose');
 
-const dailyMealSchema = mongoose.Schema(
-  {
-    breakfast: { type: Number, default: 0 },
-    lunch: { type: Number, default: 0 },
-    dinner: { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
-
 const userSchema = mongoose.Schema(
   {
     email: {
@@ -74,7 +65,9 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 0.0,
     },
-    dailyMeal: [dailyMealSchema],
+    dailyMeal: [
+      { date: { type: Date }, quantity: { type: Number, default: 0 } },
+    ],
     totalMeal: {
       type: Number,
       default: 0.0,

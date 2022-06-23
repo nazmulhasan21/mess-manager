@@ -479,18 +479,60 @@ exports.getMarketCost = async (req, res, next) => {
   }
 };
 
+exports.getCost = async (req, res, next) => {
+  try {
+    costId = req.params.id;
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const mess = await Mess.findById({ _id: req.userMessId })
+      // .populate('month', 'cost')
+      .select('month');
+    if (!mess) {
+      res.status(404).json({ message: 'You not Join any Mess' });
+      return;
+    }
+    const activeMonth = mess.month.length - 1;
+    const _id = mess.month[activeMonth]._id;
+
+    const month = await Month.findById(_id).select('cost');
+
+    res.status(200).json({ costId, month });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
 exports.addDailyBorderMeal = async (req, res, next) => {
   try {
     console.log(req.body);
-    return;
+    const activeDate = moment().format('MMMM YYYY');
 
-    const dailyMeal = {
-      breakfast: req.body.breakfast,
-      lunch: req.body.lunch,
-      dinner: req.body.dinner,
-    };
+    // const dailyMeal = {
+    //   breakfast: req.body.breakfast,
+    //   lunch: req.body.lunch,
+    //   dinner: req.body.dinner,
+    // };
+    const month = await Month.findOne({
+      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+    });
 
-    const user = await User.findById(req.body.userId);
+    if (!month) {
+      res.status(404).json({
+        message: 'You have not a active month in this movement.',
+        month,
+      });
+      return;
+    }
+
+    // const user = await User.findById(req.body.userId);
     user.dailyMeal.push(dailyMeal);
 
     await user.save();
