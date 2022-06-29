@@ -10,8 +10,8 @@ module.exports = async (req, res, next) => {
     });
 
     if (!mess) {
-      const error = new Error('mess not found');
-      error.statusCode = 404;
+      const error = new Error('This user not admin or manager');
+      error.statusCode = 401;
       throw error;
     }
 

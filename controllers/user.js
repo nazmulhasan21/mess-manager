@@ -1,9 +1,10 @@
 const path = require('path');
 const fs = require('fs');
 const _ = require('lodash');
+const mongoose = require('mongoose');
 const User = require('../models/user');
-const Month = require('../models/month');
 const Mess = require('../models/mass');
+const Meal = require('../models/meal');
 const moment = require('moment');
 //const moment = require('moment');
 
@@ -13,23 +14,37 @@ exports.me = async (req, res, next) => {
 
     const user = await User.findById({ _id: userId }).select('-password');
     if (user.messId) {
-      const mess = await Mess.findById({ _id: user.messId }).populate('month');
-
+      const mess = await Mess.findById({ _id: user.messId }).populate(
+        'month',
+        'mealRate otherCostPerPerson'
+      );
       const activeMonth = mess.month.length - 1;
       const month = mess.month[activeMonth];
-      console.log(month.mealRate);
-      user.mealCost = (month.mealRate * user.totalMeal).toFixed(2);
-      user.otherCost = month.otherCostPerPerson;
-      user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
 
-      user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
-
-      await user.save();
       res.status(200).json({ message: 'User foun successful.', user });
       return;
     } else {
       res.status(200).json({ message: 'User foun successful.', user });
     }
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+exports.getUser = async (req, res, next) => {
+  try {
+    const _id = req.params.id;
+
+    const user = await User.findById(_id, { password: 0 });
+    if (!user) {
+      const error = new Error('No User found');
+      error.statusCode = 404;
+      throw error;
+    }
+    res.send(user);
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {

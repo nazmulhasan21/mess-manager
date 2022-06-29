@@ -13,8 +13,29 @@ router.get('/', isAuth, monthController.getMonth);
 router.get('/old', isAuth, monthController.getOldMonth);
 router.get('/all', isAuth, monthController.getAllMonth);
 router.put('/manager', isAuth, isAdmin, monthController.changeManager);
-router.post('/addMemberMoney', isAuth, isAdmin, monthController.addMemberMoney);
-router.post('/addMemberRich', isAuth, isAdmin, monthController.addMemberRich);
+
+// money
+
+router.post('/memberMoney', isAuth, isAdmin, monthController.addMemberMoney);
+router.get('/memberMoney/list', isAuth, monthController.listMemberMoney);
+router.get('/memberMoney/:userId/:id', isAuth, monthController.getMemberMoney);
+router.put(
+  '/memberMoney/:userId/:id',
+  isAuth,
+  isAdmin,
+  monthController.updateMemberMoney
+);
+
+// rich //
+router.post('/memberRich', isAuth, isAdmin, monthController.addMemberRich);
+router.put(
+  '/memberRich/:userId/:id',
+  isAuth,
+  isAdmin,
+  monthController.updateMemberRich
+);
+router.get('/memberMoney/:userId/:id', isAuth, monthController.getMemberMoney);
+
 router.get('/marketCost', isAuth, monthController.getMarketCost);
 router.get('/marketCost/:id', isAuth, monthController.getCost);
 router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
@@ -24,7 +45,19 @@ router.put(
   isAdmin,
   monthController.updateMarketCost
 );
+router.delete(
+  '/marketCost/:id',
+  isAuth,
+  isAdmin,
+  monthController.deleteMarketCost
+);
 
-router.post('/dailyMeal', isAuth, monthController.addDailyBorderMeal);
+router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
+
+router.get('/meallist', isAuth, monthController.mealList);
+router.put('/dailyMeal/:id', isAuth, isAdmin, monthController.updateDailyMeal);
+router.get('/dailyMeal/:id', isAuth, isAdmin, monthController.getDailyMeal);
+
+router.get('/test', isAuth, isAdmin, monthController.test);
 
 module.exports = router;

@@ -1,10 +1,11 @@
 const moment = require('moment');
 const _ = require('lodash');
 const mongoose = require('mongoose');
+const Meal = require('../models/meal');
 const Month = require('../models/month');
 const Mess = require('../models/mass');
 const User = require('../models/user');
-const { detectExtension } = require('nodemailer/lib/mime-funcs/mime-types');
+const { split } = require('lodash');
 
 exports.createMonth = async (req, res, next) => {
   //  console.log(req.messId);
@@ -58,65 +59,62 @@ exports.createMonth = async (req, res, next) => {
 
 exports.getMonth = async (req, res, next) => {
   try {
-    const activeDate = moment().format('MMMM YYYY');
-    const mess = await Mess.findById(req.userMessId)
-      .populate('allMember', 'totalMeal totalDeposit totalDepostiRich')
-      .select('totalMeal totalDeposit totalBorder totalDepostiRich');
-
-    if (!mess) {
-      res.status(404).json({
-        message: 'You do not Join any mess.',
-      });
-      return;
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
     }
+
+    const activeDate = moment().format('MMMM YYYY');
 
     const month = await Month.findOne({
       $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
     });
 
     if (!month) {
-      res.status(404).json({
-        message: 'You have not a active month in this movement.',
-        month,
-      });
-      return;
+      const error = new Error('You have not a active month in this movement.');
+      error.statusCode = 404;
+      throw error;
     }
 
-    let cost = month.cost;
+    const meal = await Meal.aggregate([
+      {
+        $match: {
+          $and: [
+            { messId: new mongoose.Types.ObjectId(req.userMessId) },
+            { monthId: new mongoose.Types.ObjectId(month._id) },
+          ],
+        },
+      },
+      { $group: { _id: '$monthId', total: { $sum: '$total' } } },
+    ]);
 
-    month.totalMeal = _.sumBy(mess.allMember, 'totalMeal') || 1;
-    month.totalDeposit = _.sumBy(mess.allMember, 'totalDeposit');
-    month.totalRich = _.sumBy(mess.allMember, 'totalDepostiRich');
+    // let cost = month.cost;
 
-    const bigCost = _.filter(cost, { type: 'bigCost' });
-    const totalbigCost = _.sumBy(bigCost, 'amount');
-
-    const smallCost = _.filter(cost, { type: 'smallCost' });
-    const totalsmallCost = _.sumBy(smallCost, 'amount');
-
-    const otherCost = _.filter(cost, { type: 'otherCost' });
-    month.totalotherCost = _.sumBy(otherCost, 'amount');
-
-    const totalMealCost = totalbigCost + totalsmallCost;
-    month.mealRate = (totalMealCost / month.totalMeal).toFixed(2);
-
-    month.otherCostPerPerson = (
-      month.totalotherCost / mess.totalBorder
-    ).toFixed(2);
-
-    month.totalCost = totalMealCost + month.totalotherCost;
-    month.balance = month.totalDeposit - month.totalCost;
+    month.totalMeal = meal[0]?.total || 0;
+    month.mealRate = month.totalMealCost / month.totalMeal;
 
     // save in month database
     await month.save();
-    // res.status(200).json({
-    //   mess,
-    //   message: 'getMonth.',
-    //   month,
-    // });
+    const mess = await Mess.findById({ _id: month.messId })
+      .populate('allMember', ' _id')
+      .select('allMember _id');
 
-    // } else {
-    // send respose
+    const userCalcultaion = async (userId) => {
+      const user = await User.findById({ _id: userId });
+
+      user.mealCost = (month.mealRate * user.totalMeal).toFixed(2);
+      user.otherCost = month.otherCostPerPerson;
+      user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
+
+      user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
+
+      await user.save();
+    };
+    mess.allMember.map((user) => {
+      userCalcultaion(user._id);
+    });
+
     res.status(200).json({
       message: 'getMonth.',
       month,
@@ -266,17 +264,19 @@ exports.addMonthMember = async (req, res, next) => {
 };
 // end this contorller
 
+// money
 exports.addMemberMoney = async (req, res, next) => {
   // console.log(req.body);
 
   try {
     const depositAmount = req.body.depositAmount;
+
     const userId = req.body.userId;
     const depositDate = new Date();
     // find user in existing user
     const user = await User.findOne({ _id: userId });
     if (!user) {
-      const error = new Error('No Member found with this email!');
+      const error = new Error('No Member found !');
       error.statusCode = 400;
       throw error;
     }
@@ -287,10 +287,12 @@ exports.addMemberMoney = async (req, res, next) => {
 
     user.depositAmount.push(deposit);
     user.totalDeposit = _.sumBy(user.depositAmount, 'amount');
+    user.balance = user.totalDeposit - user.totalCost;
 
     await user.save();
     const month = await Month.findOne({ messId: req.messId });
     month.totalDeposit += depositAmount;
+    month.balance = month.totalDeposit - month.totalCost;
     await month.save();
 
     // send respose
@@ -303,7 +305,96 @@ exports.addMemberMoney = async (req, res, next) => {
     next(err);
   }
 };
+exports.listMemberMoney = async (req, res, next) => {
+  try {
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
 
+    const mess = await Mess.findById({ _id: req.userMessId })
+      .populate('allMember', 'depositAmount')
+      .select('allMember depositAmount');
+
+    if (!mess) {
+      const error = new Error('mess not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const user = mess.allMember;
+
+    res.status(200).json({ message: 'Get your mass member money list.', user });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+exports.getMemberMoney = async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    const id = req.params.id;
+    const user = await User.findById({ _id: userId }).select('depositAmount');
+
+    if (!user) {
+      const error = new Error('user not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const depositAmount = _.filter(user.depositAmount, [
+      '_id',
+      new mongoose.Types.ObjectId(id),
+    ]);
+
+    const data = _.concat(depositAmount, { userId: userId });
+
+    //
+    res.status(201).json({ message: 'Get your mass.', data });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+exports.updateMemberMoney = async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    const id = req.params.id;
+    const amount = req.body.amount;
+    const depositDate = req.body.depositAmount;
+    const user = await User.findById({ _id: userId }).select('depositAmount');
+
+    if (!user) {
+      const error = new Error('user not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const depositAmount = _.filter(user.depositAmount, [
+      '_id',
+      new mongoose.Types.ObjectId(id),
+    ]);
+    depositAmount[0].amount = amount;
+    depositAmount[0].depositDate = depositDate;
+    await user.save();
+
+    //
+    res.status(201).json({ message: 'Get your mass.', depositAmount });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+// end money
+
+// Rich //
 exports.addMemberRich = async (req, res, next) => {
   // console.log(req.body);
 
@@ -341,13 +432,109 @@ exports.addMemberRich = async (req, res, next) => {
   }
 };
 
+exports.updateMemberRich = async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    const id = req.params.id;
+    const amount = req.body.amount;
+    const depositDate = req.body.depositAmount;
+    const user = await User.findById({ _id: userId }).select('depositRich');
+
+    if (!user) {
+      const error = new Error('user not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const depositRich = _.filter(user.depositRich, [
+      '_id',
+      new mongoose.Types.ObjectId(id),
+    ]);
+    depositRich[0].amount = amount;
+    depositRich[0].depositDate = depositDate;
+    await user.save();
+
+    //
+    res.status(201).json({ message: 'Get your mass.', depositRich });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.getMemberRich = async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    const id = req.params.id;
+    const user = await User.findById({ _id: userId }).select('depositRich');
+
+    if (!user) {
+      const error = new Error('user not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const depositRich = _.filter(user.depositRich, [
+      '_id',
+      new mongoose.Types.ObjectId(id),
+    ]);
+
+    const data = _.concat(depositRich, { userId: userId });
+
+    //
+    res.status(201).json({ message: 'Get your mass.', data });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.listMemberRich = async (req, res, next) => {
+  try {
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const mess = await Mess.findById({ _id: req.userMessId })
+      .populate('allMember', 'depositRich')
+      .select('allMember depositRich');
+
+    if (!mess) {
+      const error = new Error('mess not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+    const user = mess.allMember;
+
+    res.status(200).json({ message: 'Get your mass member Rich list.', user });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+// end Rich
+
+// cost
+
 exports.addMarketCost = async (req, res, next) => {
   try {
     const type = req.body.type;
     const titel = req.body.titel;
     const amount = req.body.amount;
     const purchasedate = new Date();
-    const month = await Month.findOne({ managerName: req.userId });
+    const month = await Month.findOne({ managerName: req.userId }).select(
+      'cost totalCost balance totalDeposit'
+    );
     if (!month) {
       const error = new Error('Month not found!');
       error.statusCode = 404;
@@ -361,19 +548,15 @@ exports.addMarketCost = async (req, res, next) => {
       amount: amount,
       purchasedate: purchasedate,
     };
-    // if (type === 'bigCost') {
-    //   month.bigCost.push(cost);
-    // } else if (type === 'smallCost') {
-    //   month.smallCost.push(cost);
-    // } else if (type === 'otherCost') {
-    //   month.otherCost.push(cost);
-    // }
+
     month.cost.push(cost);
+
+    calculation(month, req);
+
     await month.save();
+
     const length = month.cost.length - 1;
     const recentCost = month.cost[length];
-
-    console.log(recentCost);
 
     // send respose
     res.status(201).json({ message: 'Add Cost successfull.', recentCost });
@@ -385,6 +568,7 @@ exports.addMarketCost = async (req, res, next) => {
     next(err);
   }
 };
+
 exports.updateMarketCost = async (req, res, next) => {
   try {
     const type = req.body.type;
@@ -393,7 +577,9 @@ exports.updateMarketCost = async (req, res, next) => {
     const amount = req.body.amount;
     const purchasedate = new Date();
 
-    const month = await Month.findOne({ managerName: req.userId });
+    const month = await Month.findOne({ managerName: req.userId }).select(
+      'cost totalCost totalDeposit balance'
+    );
     if (!month) {
       const error = new Error('Month not found!');
       error.statusCode = 404;
@@ -405,35 +591,48 @@ exports.updateMarketCost = async (req, res, next) => {
 
       ['_id', new mongoose.Types.ObjectId(id)]
     );
-    // add Big Market Cost
-    // let cost;
-    // if (type === 'bigCost') {
-    //   const bigCost = month.bigCost;
-    //   cost = _.filter(
-    //     bigCost,
 
-    //     ['_id', new mongoose.Types.ObjectId(id)]
-    //   );
-    // } else if (type === 'smallCost') {
-    //   const smallCost = month.smallCost;
-    //   cost = _.filter(
-    //     smallCost,
-
-    //     ['_id', new mongoose.Types.ObjectId(id)]
-    //   );
-    // } else if (type === 'otherCost') {
-    //   const otherCost = month.otherCost;
-    //   cost = _.filter(
-    //     otherCost,
-
-    //     ['_id', new mongoose.Types.ObjectId(id)]
-    //   );
-    //   console.log(cost);
-    // }
     (cost[0].type = type),
       (cost[0].titel = titel),
       (cost[0].amount = amount),
       (cost[0].purchasedate = purchasedate);
+
+    calculation(month, req);
+
+    await month.save();
+
+    // send respose
+    res.status(201).json({ message: 'eidt cost.', cost });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.deleteMarketCost = async (req, res, next) => {
+  try {
+    const id = req.params.id;
+
+    const month = await Month.findOne({ managerName: req.userId }).select(
+      'cost totalCost totalDeposit balance'
+    );
+    if (!month) {
+      const error = new Error('Month not found!');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const cost = _.filter(
+      month.cost,
+
+      ['_id', new mongoose.Types.ObjectId(id)]
+    );
+    month.cost.pull(cost[0]);
+
+    calculation(month, req);
 
     await month.save();
 
@@ -450,26 +649,21 @@ exports.updateMarketCost = async (req, res, next) => {
 
 exports.getMarketCost = async (req, res, next) => {
   try {
-    costTypeObject = req.query.costType;
+    costTypeObject = req.query.cost;
     if (!req.userMessId) {
       const error = new Error('You not join any Mess.');
       error.statusCode = 404;
       throw error;
     }
+    // const query = req.query.cost.split(',');
+    // const newarr = _.join(query, ' ');
 
-    const mess = await Mess.findById({ _id: req.userMessId })
-      // .populate('month', 'cost')
-      .select('month');
-    if (!mess) {
-      res.status(404).json({ message: 'You not Join any Mess' });
-      return;
-    }
-    const activeMonth = mess.month.length - 1;
-    const _id = mess.month[activeMonth]._id;
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+    }).select('cost');
 
-    const month = await Month.findById(_id).select('cost');
-
-    res.status(200).json(month);
+    res.status(200).json({ month });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -481,26 +675,25 @@ exports.getMarketCost = async (req, res, next) => {
 
 exports.getCost = async (req, res, next) => {
   try {
-    costId = req.params.id;
+    const costId = req.params.id;
     if (!req.userMessId) {
       const error = new Error('You not join any Mess.');
       error.statusCode = 404;
       throw error;
     }
 
-    const mess = await Mess.findById({ _id: req.userMessId })
-      // .populate('month', 'cost')
-      .select('month');
-    if (!mess) {
-      res.status(404).json({ message: 'You not Join any Mess' });
-      return;
-    }
-    const activeMonth = mess.month.length - 1;
-    const _id = mess.month[activeMonth]._id;
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+    }).select('cost');
 
-    const month = await Month.findById(_id).select('cost');
+    const cost = _.filter(
+      month.cost,
 
-    res.status(200).json({ costId, month });
+      ['_id', new mongoose.Types.ObjectId(costId)]
+    );
+
+    res.status(200).json(cost);
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -510,33 +703,62 @@ exports.getCost = async (req, res, next) => {
   }
 };
 
+// end Cost
+
 exports.addDailyBorderMeal = async (req, res, next) => {
   try {
-    console.log(req.body);
-    const activeDate = moment().format('MMMM YYYY');
+    const dailyMealArray = req.body;
+    const messId = req.messId;
 
-    // const dailyMeal = {
-    //   breakfast: req.body.breakfast,
-    //   lunch: req.body.lunch,
-    //   dinner: req.body.dinner,
-    // };
+    const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
-    });
+      $and: [{ messId: req.messId }, { monthTitel: activeDate }],
+    }).select('_id totalMeal');
 
     if (!month) {
-      res.status(404).json({
-        message: 'You have not a active month in this movement.',
-        month,
-      });
-      return;
+      const error = new Error('Now have not  active Month.');
+      error.statusCode = 404;
+      throw error;
     }
 
-    // const user = await User.findById(req.body.userId);
-    user.dailyMeal.push(dailyMeal);
+    const monthId = month._id;
 
-    await user.save();
-    res.status(201).json({ message: 'Add dailyMeal successfully.' });
+    const monthMeal = async (userId, dailyMeal) => {
+      const newMeal = new Meal(dailyMeal);
+      await newMeal.save();
+
+      const meal = await Meal.aggregate([
+        {
+          $match: {
+            $and: [
+              { userId: new mongoose.Types.ObjectId(userId) },
+              { monthId: new mongoose.Types.ObjectId(monthId) },
+            ],
+          },
+        },
+        { $group: { _id: '$monthId', total: { $sum: '$total' } } },
+      ]);
+      const user = await User.findById({ _id: userId }).select('totalMeal');
+
+      //  console.log(month);
+      user.totalMeal = meal[0]?.total || 0;
+      await user.save();
+    };
+
+    dailyMealArray.map((meal) => {
+      const userId = meal.userId;
+      const total = meal.breakfast + meal.lunch + meal.dinner;
+      const dailyMeal = {
+        ...meal,
+        total: total,
+        messId,
+        monthId,
+      };
+
+      monthMeal(userId, dailyMeal);
+    });
+
+    res.status(201).json({ message: 'Add dailyMeal successfully.', month });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -544,4 +766,170 @@ exports.addDailyBorderMeal = async (req, res, next) => {
     }
     next(err);
   }
+};
+exports.mealList = async (req, res, next) => {
+  try {
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+    }).select('_id');
+    // some filter query
+
+    // const date = new Date(`${req.query.date}`, 0, 0, 0).toISOString();
+    // const dayfilter = date ? { date: { $eq: date } } : {};
+    const userId = req.query.userId;
+    const userfilter = userId ? { userId: req.userId } : {};
+    const meal = await Meal.find({
+      $and: [{ messId: req.userMessId }, { monthId: month._id }],
+      //  ...dayfilter,
+      ...userfilter,
+    }).populate('userId', 'name');
+
+    if (!meal) {
+      const error = new Error('This Month have a no meal aviabel!');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    //
+    res
+      .status(201)
+      .json({ message: 'Get your member meal List.', month, meal });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.updateDailyMeal = async (req, res, next) => {
+  try {
+    // const userId = req.params.userId;
+    const id = req.params.id;
+    const { breakfast, lunch, dinner, date } = req.body;
+    const total = breakfast + lunch + dinner;
+
+    const meal = await Meal.findById({ _id: id });
+    if (!meal) {
+      const error = new Error('Meal not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    (meal.breakfast = breakfast),
+      (meal.lunch = lunch),
+      (meal.dinner = dinner),
+      (meal.date = date),
+      (meal.total = total);
+    await meal.save();
+
+    res.status(201).json({ message: 'update meal successfull.' });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.getDailyMeal = async (req, res, next) => {
+  try {
+    // const userId = req.params.userId;
+    const id = req.params.id;
+
+    const meal = await Meal.findById({ _id: id });
+    if (!meal) {
+      const error = new Error('Meal not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res.status(201).json({ message: 'get meal successfull.', meal });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.getMonthCalculation = async (req, res, next) => {
+  try {
+    const month = await Month.findById({ _id: id });
+    if (!month) {
+      const error = new Error('month not found !');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res
+      .status(201)
+      .json({ message: 'get month successfull.', monthCalculation });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.test = async (req, res, next) => {
+  try {
+    if (!req.userMessId) {
+      const error = new Error('You not join any Mess.');
+      error.statusCode = 404;
+      throw error;
+    }
+    console.log(req.userId);
+    const meal = await Meal.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
+      { $group: { _id: '$date', total: { $sum: '$total' } } },
+    ]);
+
+    //  const meal = await Meal.find({ userId: req.userId });
+
+    res.status(201).json({ message: 'Get your member meal List.', meal });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+///  calculation cost
+
+const calculation = async (month, req) => {
+  const mess = await Mess.findById(req.userMessId).select(' totalBorder ');
+  const cost = month.cost;
+
+  const bigCost = _.filter(cost, { type: 'bigCost' });
+  const totalbigCost = _.sumBy(bigCost, 'amount');
+
+  const smallCost = _.filter(cost, { type: 'smallCost' });
+  const totalsmallCost = _.sumBy(smallCost, 'amount');
+
+  const otherCost = _.filter(cost, { type: 'otherCost' });
+  month.totalotherCost = _.sumBy(otherCost, 'amount');
+
+  month.totalMealCost = totalbigCost + totalsmallCost;
+
+  month.totalCost = _.sumBy(month.cost, 'amount');
+
+  month.balance = month.totalDeposit - month.totalCost;
+
+  month.otherCostPerPerson = (month.totalotherCost / mess.totalBorder).toFixed(
+    2
+  );
 };

@@ -81,7 +81,8 @@ exports.getMess = async (req, res, next) => {
     }
     const mess = await Mess.findById({ _id: req.userMessId })
       .populate('month')
-      .populate('managerName', 'name');
+      .populate('managerName', 'name')
+      .populate('allMember', 'depositAmount');
 
     //
     res.status(201).json({ message: 'Get your mass.', mess });

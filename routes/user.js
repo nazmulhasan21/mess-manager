@@ -20,6 +20,7 @@ const isAdmin = require('../middleware/is-admin');
 
 // create routers
 router.get('/me', isAuth, userControllers.me);
+router.get('/:id', isAuth, userControllers.getUser);
 router.put('/me', isAuth, userControllers.updateInfo);
 router.put(
   '/me/avater',

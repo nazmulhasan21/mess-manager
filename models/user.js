@@ -38,6 +38,7 @@ const userSchema = mongoose.Schema(
     ],
     totalDeposit: {
       type: Number,
+      default: 0,
     },
     totalCost: {
       type: Number,
@@ -65,9 +66,7 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 0.0,
     },
-    dailyMeal: [
-      { date: { type: Date }, quantity: { type: Number, default: 0 } },
-    ],
+    // dailyMeal: [dailyMealSchema],
     totalMeal: {
       type: Number,
       default: 0.0,
@@ -80,6 +79,7 @@ const userSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Mess',
     },
+
     // emailVerified: {
     //   type: Boolean,
     //   default: false,
