@@ -110,7 +110,7 @@ exports.login = async (req, res, next) => {
       throw {
         statusCode: 401,
         errors: {
-          login: 'A user with this email could not be found.',
+          email: 'A user with this email could not be found.',
         },
       };
     }
@@ -137,7 +137,7 @@ exports.login = async (req, res, next) => {
       throw {
         statusCode: 401,
         errors: {
-          login: 'Wrong password.',
+          password: 'Wrong password.',
         },
       };
     }
