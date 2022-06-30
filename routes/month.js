@@ -34,7 +34,7 @@ router.put(
   isAdmin,
   monthController.updateMemberRich
 );
-router.get('/memberMoney/:userId/:id', isAuth, monthController.getMemberMoney);
+router.get('/memberRich/:userId/:id', isAuth, monthController.getMemberRich);
 
 router.get('/marketCost', isAuth, monthController.getMarketCost);
 router.get('/marketCost/:id', isAuth, monthController.getCost);
@@ -57,6 +57,8 @@ router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
 router.get('/meallist', isAuth, monthController.mealList);
 router.put('/dailyMeal/:id', isAuth, isAdmin, monthController.updateDailyMeal);
 router.get('/dailyMeal/:id', isAuth, isAdmin, monthController.getDailyMeal);
+
+router.get('/monthCalculation', monthController.getMonthCalculation);
 
 router.get('/test', isAuth, isAdmin, monthController.test);
 

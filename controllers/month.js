@@ -5,7 +5,8 @@ const Meal = require('../models/meal');
 const Month = require('../models/month');
 const Mess = require('../models/mass');
 const User = require('../models/user');
-const { split } = require('lodash');
+
+const Puppeteer = require('puppeteer');
 
 exports.createMonth = async (req, res, next) => {
   //  console.log(req.messId);
@@ -864,16 +865,32 @@ exports.getDailyMeal = async (req, res, next) => {
 
 exports.getMonthCalculation = async (req, res, next) => {
   try {
-    const month = await Month.findById({ _id: id });
+    const month = await Month.findOne({ _id: '62b6c580c2659da9b9145e63' });
     if (!month) {
       const error = new Error('month not found !');
       error.statusCode = 404;
       throw error;
     }
 
-    res
-      .status(201)
-      .json({ message: 'get month successfull.', monthCalculation });
+    const browser = await Puppeteer.launch();
+
+    const page = await browser.newPage();
+    await page.goto('/month/monthCalculation');
+    await page.setContent('<h1> Hello world </h1>');
+
+    // creat a pdf document
+
+    await page.pdf({
+      path: month.monthTitel + '.pdf',
+      format: 'A4',
+      printBackground: true,
+    });
+
+    console.log('Done create pdf');
+
+    await browser.close();
+
+    res.status(201).json({ message: 'get month successfull.', result });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
