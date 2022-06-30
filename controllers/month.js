@@ -7,11 +7,32 @@ const Mess = require('../models/mass');
 const User = require('../models/user');
 
 const Puppeteer = require('puppeteer');
+const hbs = require('handlebars');
+const path = require('path');
+const fs = require('fs-extra');
+const data = require('../date.json');
+// compile the hbs templete to pdf document
+
+const compile = async function (templeteName, data) {
+  const filePath = path.join(process.cwd(), 'templates', `${templeteName}.hbs`);
+
+  // get the html
+
+  const html = await fs.readFile(filePath, 'utf8');
+  return hbs.compile(html)(data);
+};
 
 exports.createMonth = async (req, res, next) => {
   //  console.log(req.messId);
 
   try {
+    const user = await User.findById({ _id: req.userId });
+
+    if (userRole !== 'manager') {
+      const error = new Error('This User not Mess manager');
+      error.statusCode = 400;
+      throw error;
+    }
     const activeDate = moment().format('MMMM YYYY');
     const messId = req.messId;
     const messName = req.messName;
@@ -872,15 +893,20 @@ exports.getMonthCalculation = async (req, res, next) => {
       throw error;
     }
 
-    const browser = await Puppeteer.launch();
+    const browser = await Puppeteer.launch({
+      headless: true,
+      ignoreDefaultArgs: ['--disable-extensions'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
     const page = await browser.newPage();
-    await page.goto('/month/monthCalculation');
-    await page.setContent('<h1> Hello world </h1>');
+    // await page.goto('/month/monthCalculation');
+    const content = await compile('index', data);
+    await page.setContent(content);
 
     // creat a pdf document
 
-    await page.pdf({
+    const resul = await page.pdf({
       path: month.monthTitel + '.pdf',
       format: 'A4',
       printBackground: true,
@@ -889,8 +915,9 @@ exports.getMonthCalculation = async (req, res, next) => {
     console.log('Done create pdf');
 
     await browser.close();
+    console.log(resul);
 
-    res.status(201).json({ message: 'get month successfull.', result });
+    res.status(201).json({ message: 'get month successfull.', month, resul });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {

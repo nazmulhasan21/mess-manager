@@ -1,0 +1,30 @@
+{
+  "title": "PDF Document in Puppeteer & Handlebars",
+  "user": [
+    {
+      "name": "Md. Nazmul Hasan",
+      "age": 25,
+      "country": "Bangladash"
+    },
+    {
+      "name": "Md. Faruk Hasan",
+      "age": 25,
+      "country": "Bangladash"
+    },
+    {
+      "name": "Md. Ali Hasan",
+      "age": 25,
+      "country": "Bangladash"
+    },
+    {
+      "name": "Md. Rubel Hasan",
+      "age": 25,
+      "country": "Bangladash"
+    },
+    {
+      "name": "Md. Nazmul Hasan",
+      "age": 25,
+      "country": "Bangladash"
+    }
+  ]
+}

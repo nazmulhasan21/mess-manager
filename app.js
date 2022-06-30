@@ -4,13 +4,13 @@ const mongoose = require('mongoose');
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const PUPPETEER_SKIP_DOWNLOAD = 'true';
 
 //const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 
-const MONGODB_URL = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.nhvb2.mongodb.net/${process.env.MONGO_DEFAULT_DATABASE}`;
-
+MONGODB_URL = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.nhvb2.mongodb.net/${process.env.MONGO_DEFAULT_DATABASE}`;
 // require all Routes
 
 const authRoutes = require('./routes/auth');
