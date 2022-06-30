@@ -11,6 +11,9 @@ const hbs = require('handlebars');
 const path = require('path');
 const fs = require('fs-extra');
 const data = require('../date.json');
+
+const getUser = require('../utils/getUser');
+
 // compile the hbs templete to pdf document
 
 const compile = async function (templeteName, data) {
@@ -26,13 +29,6 @@ exports.createMonth = async (req, res, next) => {
   //  console.log(req.messId);
 
   try {
-    const user = await User.findById({ _id: req.userId });
-
-    if (userRole !== 'manager') {
-      const error = new Error('This User not Mess manager');
-      error.statusCode = 400;
-      throw error;
-    }
     const activeDate = moment().format('MMMM YYYY');
     const messId = req.messId;
     const messName = req.messName;
@@ -81,16 +77,17 @@ exports.createMonth = async (req, res, next) => {
 
 exports.getMonth = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
       const error = new Error('You not join any Mess.');
       error.statusCode = 404;
       throw error;
     }
-
     const activeDate = moment().format('MMMM YYYY');
 
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitel: activeDate }],
     });
 
     if (!month) {
@@ -114,7 +111,7 @@ exports.getMonth = async (req, res, next) => {
     // let cost = month.cost;
 
     month.totalMeal = meal[0]?.total || 0;
-    month.mealRate = month.totalMealCost / month.totalMeal;
+    month.mealRate = month.totalMealCost / month.totalMeal || 0;
 
     // save in month database
     await month.save();
@@ -141,6 +138,7 @@ exports.getMonth = async (req, res, next) => {
       message: 'getMonth.',
       month,
     });
+
     // }
   } catch (err) {
     console.log(err);
@@ -886,12 +884,12 @@ exports.getDailyMeal = async (req, res, next) => {
 
 exports.getMonthCalculation = async (req, res, next) => {
   try {
-    const month = await Month.findOne({ _id: '62b6c580c2659da9b9145e63' });
-    if (!month) {
-      const error = new Error('month not found !');
-      error.statusCode = 404;
-      throw error;
-    }
+    // const month = await Month.findOne({ _id: '62b6c580c2659da9b9145e63' });
+    // if (!month) {
+    //   const error = new Error('month not found !');
+    //   error.statusCode = 404;
+    //   throw error;
+    // }
 
     const browser = await Puppeteer.launch({
       headless: true,
@@ -907,7 +905,7 @@ exports.getMonthCalculation = async (req, res, next) => {
     // creat a pdf document
 
     const resul = await page.pdf({
-      path: month.monthTitel + '.pdf',
+      path: 'mynewpdf.pdf',
       format: 'A4',
       printBackground: true,
     });
@@ -917,7 +915,7 @@ exports.getMonthCalculation = async (req, res, next) => {
     await browser.close();
     console.log(resul);
 
-    res.status(201).json({ message: 'get month successfull.', month, resul });
+    res.status(201).json({ message: 'get month successfull.', resul });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {

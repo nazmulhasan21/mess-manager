@@ -69,11 +69,14 @@ app.use('/user', userRoutes);
 //// errors handeler middleware
 
 app.use((error, req, res, next) => {
-  console.log({ error: error, messagess: 'miderlor' });
-  const status = error.statusCode || 500;
-  const message = error.message;
-  const data = error.data;
-  res.status(status).json({ message, data });
+  // console.log({ error: error });
+  // const status = error.statusCode || 500;
+  // const message = error.message;
+  // const path = error.path;
+  // const errData = { msg: message, param: path };
+
+  // console.log('m', error);
+  res.status(error.statusCode || 500).json({ error: error.customErr });
 });
 
 mongoose

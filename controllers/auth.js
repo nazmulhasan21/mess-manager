@@ -9,11 +9,21 @@ const sendEmail = require('../utils/sendEmail');
 
 //signup user
 
+const handleError = (erros) => {
+  const arrObj = {};
+  erros.forEach((error) => {
+    arrObj[error.param] = error.msg;
+  });
+  return arrObj;
+};
+
 exports.signup = async (req, res, next) => {
-  console.log(req.body);
+  // console.log(req.body);
   try {
     const errors = validationResult(req);
+    // return;
     if (!errors.isEmpty()) {
+      console.log(errors);
       const error = new Error('validation failed.');
       error.statusCode = 422;
       error.data = errors.array();
@@ -45,10 +55,11 @@ exports.signup = async (req, res, next) => {
     // await sendEmail(user.email, 'Verify Email', url);
     res.status(201).json({ message: 'User create successefully' });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
+    err.customErr = handleError(err.data);
     next(err);
   }
 };
@@ -93,9 +104,15 @@ exports.login = async (req, res, next) => {
     const userData = req.body;
     const user = await User.findOne({ email: userData.email });
     if (!user) {
-      const error = new Error('A user with this email could not be found.');
-      error.statusCode = 401;
-      throw error;
+      // const error = new Error('A user with this email could not be found.');
+      // error.statusCode = 401;
+      // error.path = 'email';
+      throw {
+        statusCode: 401,
+        errors: {
+          login: 'A user with this email could not be found.',
+        },
+      };
     }
 
     // if (!user.emailVerify) {
@@ -119,6 +136,7 @@ exports.login = async (req, res, next) => {
     if (!isEqual) {
       const error = new Error('Wrong password');
       error.statusCode = 401;
+
       throw error;
     }
     let token;
@@ -146,12 +164,17 @@ exports.login = async (req, res, next) => {
         //  {expiresIn:'2h'}
       );
     }
-    res.status(200).json({ token: token, userId: user._id.toString() });
+    res.status(200).json({
+      message: 'User login successfully',
+      token: token,
+      userId: user._id.toString(),
+    });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
+    err.customErr = err.errors;
     next(err);
   }
 };
