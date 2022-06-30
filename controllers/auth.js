@@ -134,10 +134,12 @@ exports.login = async (req, res, next) => {
     const isEqual = await bcrypt.compare(userData.password, user.password);
 
     if (!isEqual) {
-      const error = new Error('Wrong password');
-      error.statusCode = 401;
-
-      throw error;
+      throw {
+        statusCode: 401,
+        errors: {
+          login: 'Wrong password.',
+        },
+      };
     }
     let token;
     if (user.messId) {
