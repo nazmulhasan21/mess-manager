@@ -9,21 +9,13 @@ const sendEmail = require('../utils/sendEmail');
 
 //signup user
 
-const handleError = (erros) => {
-  const arrObj = {};
-  erros.forEach((error) => {
-    arrObj[error.param] = error.msg;
-  });
-  return arrObj;
-};
-
 exports.signup = async (req, res, next) => {
   // console.log(req.body);
   try {
     const errors = validationResult(req);
     // return;
     if (!errors.isEmpty()) {
-      console.log(errors);
+      // console.log(errors);
       const error = new Error('validation failed.');
       error.statusCode = 422;
       error.data = errors.array();
@@ -36,7 +28,7 @@ exports.signup = async (req, res, next) => {
       ...userData,
       password: hashPassword,
     }).save();
-    console.log(user);
+    // console.log(user);
 
     // create email Verified token
 
@@ -59,7 +51,7 @@ exports.signup = async (req, res, next) => {
     if (!err.statusCode) {
       err.statusCode = 500;
     }
-    err.customErr = handleError(err.data);
+
     next(err);
   }
 };
@@ -72,24 +64,30 @@ exports.emailVerify = async (req, res, next) => {
   try {
     const user = await User.findById({ _id: req.params.id });
     if (!user) {
-      const error = new Error('Invalid link.');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          token: 'Invalid link.',
+        },
+      };
     }
     const token = await Token.findOne({
       userId: user._id,
       token: req.params.token,
     });
     if (!token) {
-      const error = new Error('Invalid token.');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          token: 'Invalid token..',
+        },
+      };
     }
     await User.updateOne({ _id: user._id, emailVerify: true });
     await token.remove();
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -172,11 +170,10 @@ exports.login = async (req, res, next) => {
       userId: user._id.toString(),
     });
   } catch (err) {
-    console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
-    err.customErr = err.errors;
+
     next(err);
   }
 };

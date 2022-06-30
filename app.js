@@ -68,6 +68,14 @@ app.use('/user', userRoutes);
 
 //// errors handeler middleware
 
+const handleError = (erros) => {
+  const arrObj = {};
+  erros.forEach((error) => {
+    arrObj[error.param] = error.msg;
+  });
+  return arrObj;
+};
+
 app.use((error, req, res, next) => {
   // console.log({ error: error });
   // const status = error.statusCode || 500;
@@ -75,6 +83,7 @@ app.use((error, req, res, next) => {
   // const path = error.path;
   // const errData = { msg: message, param: path };
 
+  error.customErr = error.errors || handleError(error.data);
   // console.log('m', error);
   res.status(error.statusCode || 500).json({ error: error.customErr });
 });

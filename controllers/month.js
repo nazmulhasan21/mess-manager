@@ -43,11 +43,14 @@ exports.createMonth = async (req, res, next) => {
     });
     // const oldMonth = await Month.findOne({ $and: [{messId:messId }, { monthTitel: }]});
     if (activeMonth) {
-      const error = new Error(
-        `All ready exit this ${moment().format('MMMM YYYY')} Month manager!`
-      );
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          activeMonth: `All r eady exit this ${moment().format(
+            'MMMM YYYY'
+          )} Month manager!`,
+        },
+      };
     }
     const month = new Month({
       messId,
@@ -57,9 +60,17 @@ exports.createMonth = async (req, res, next) => {
       allMember,
     });
 
-    console.log(month);
+    //console.log(month);
     const createMonth = await month.save();
     const mess = await Mess.findById(req.messId);
+    if (!mess) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: ' Mess not found.',
+        },
+      };
+    }
     mess.month.push(month);
     const updateMess = await mess.save();
 
@@ -67,7 +78,7 @@ exports.createMonth = async (req, res, next) => {
       .status(201)
       .json({ message: 'Create your mass Fully.', createMonth, updateMess });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -91,16 +102,19 @@ exports.getMonth = async (req, res, next) => {
     });
 
     if (!month) {
-      const error = new Error('You have not a active month in this movement.');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'You have not a active month in this movement.',
+        },
+      };
     }
 
     const meal = await Meal.aggregate([
       {
         $match: {
           $and: [
-            { messId: new mongoose.Types.ObjectId(req.userMessId) },
+            { messId: new mongoose.Types.ObjectId(messId) },
             { monthId: new mongoose.Types.ObjectId(month._id) },
           ],
         },
@@ -141,7 +155,7 @@ exports.getMonth = async (req, res, next) => {
 
     // }
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -151,26 +165,35 @@ exports.getMonth = async (req, res, next) => {
 
 exports.getOldMonth = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
+
     const activeDate = moment().subtract(1, 'months');
     const oldMonth = activeDate.format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: oldMonth }],
+      $and: [{ messId: messId }, { monthTitel: oldMonth }],
     });
     if (!month) {
-      const error = new Error('Old Month are not aviable!');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          month: 'Old Month are not aviable!',
+        },
+      };
     }
 
     // send respose
     res.status(200).json({ message: 'getMonth.', month });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -180,12 +203,16 @@ exports.getOldMonth = async (req, res, next) => {
 
 exports.getAllMonth = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
-    const messId = req.userMessId;
     const messIdFilter = messId ? { messId } : {};
     const monthTitel = req.query.monthTitel || '';
     // const activeDate = moment().subtract(1, 'months');
@@ -196,9 +223,12 @@ exports.getAllMonth = async (req, res, next) => {
 
     const month = await Month.find({ ...monthFilter, ...messIdFilter });
     if (!month) {
-      const error = new Error(`Not have a ${monthTitel} this Month`);
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          month: `Not have a ${monthTitel} this Month`,
+        },
+      };
     }
     let message = 'Get Your Mess Months';
     if (month == false) {
@@ -210,7 +240,7 @@ exports.getAllMonth = async (req, res, next) => {
     // send respose
     res.status(200).json({ message, month });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -223,15 +253,19 @@ exports.changeManager = async (req, res, next) => {
     const userId = req.body.userId;
     const isMessMember = await Mess.findOne({ allMember: userId });
     if (!isMessMember) {
-      const error = new Error('This user not this mess  Member!');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          isMessMember: 'This user not this mess  Member!',
+        },
+      };
     }
     const month = await Month.findOne({
       $and: [{ messId: req.messId }, { managerName: req.userId }],
     });
     month.managerName = userId;
     const user = await User.findById({ _id: userId });
+    // set new month manager
     user.role = 'manager';
     await user.save();
     const oldManager = await User.findById({ _id: req.userId });
@@ -245,7 +279,7 @@ exports.changeManager = async (req, res, next) => {
     // send respose
     res.status(200).json({ message: 'Change Manager.', month });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -292,13 +326,16 @@ exports.addMemberMoney = async (req, res, next) => {
     const depositAmount = req.body.depositAmount;
 
     const userId = req.body.userId;
-    const depositDate = new Date();
+    const depositDate = req.body.depositDate || new Date();
     // find user in existing user
     const user = await User.findOne({ _id: userId });
     if (!user) {
-      const error = new Error('No Member found !');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          user: 'No Member found !',
+        },
+      };
     }
     const deposit = {
       amount: depositAmount,
@@ -318,7 +355,7 @@ exports.addMemberMoney = async (req, res, next) => {
     // send respose
     res.status(201).json({ message: 'Add money.', user });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -327,26 +364,34 @@ exports.addMemberMoney = async (req, res, next) => {
 };
 exports.listMemberMoney = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
 
-    const mess = await Mess.findById({ _id: req.userMessId })
+    const mess = await Mess.findById({ _id: messId })
       .populate('allMember', 'depositAmount')
       .select('allMember depositAmount');
 
     if (!mess) {
-      const error = new Error('mess not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'mess not found !',
+        },
+      };
     }
     const user = mess.allMember;
 
     res.status(200).json({ message: 'Get your mass member money list.', user });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -360,9 +405,12 @@ exports.getMemberMoney = async (req, res, next) => {
     const user = await User.findById({ _id: userId }).select('depositAmount');
 
     if (!user) {
-      const error = new Error('user not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'user not found !',
+        },
+      };
     }
     const depositAmount = _.filter(user.depositAmount, [
       '_id',
@@ -374,7 +422,7 @@ exports.getMemberMoney = async (req, res, next) => {
     //
     res.status(201).json({ message: 'Get your mass.', data });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -390,9 +438,12 @@ exports.updateMemberMoney = async (req, res, next) => {
     const user = await User.findById({ _id: userId }).select('depositAmount');
 
     if (!user) {
-      const error = new Error('user not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'user not found !',
+        },
+      };
     }
     const depositAmount = _.filter(user.depositAmount, [
       '_id',
@@ -405,7 +456,7 @@ exports.updateMemberMoney = async (req, res, next) => {
     //
     res.status(201).json({ message: 'Get your mass.', depositAmount });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -421,13 +472,16 @@ exports.addMemberRich = async (req, res, next) => {
   try {
     const depositRich = req.body.depositRich;
     const userId = req.body.userId;
-    const depositDate = new Date();
+    const depositDate = req.body.depositDate || new Date();
     // find user in existing user
     const user = await User.findOne({ _id: userId });
     if (!user) {
-      const error = new Error('No Member found with this email!');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          user: 'No Member found with this email!',
+        },
+      };
     }
 
     const deposit = {
@@ -444,7 +498,7 @@ exports.addMemberRich = async (req, res, next) => {
     // send respose
     res.status(201).json({ message: 'Add Rich.', user, month });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -461,9 +515,12 @@ exports.updateMemberRich = async (req, res, next) => {
     const user = await User.findById({ _id: userId }).select('depositRich');
 
     if (!user) {
-      const error = new Error('user not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'user not found !',
+        },
+      };
     }
     const depositRich = _.filter(user.depositRich, [
       '_id',
@@ -491,9 +548,12 @@ exports.getMemberRich = async (req, res, next) => {
     const user = await User.findById({ _id: userId }).select('depositRich');
 
     if (!user) {
-      const error = new Error('user not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'user not found !',
+        },
+      };
     }
     const depositRich = _.filter(user.depositRich, [
       '_id',
@@ -515,20 +575,28 @@ exports.getMemberRich = async (req, res, next) => {
 
 exports.listMemberRich = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
 
-    const mess = await Mess.findById({ _id: req.userMessId })
+    const mess = await Mess.findById({ _id: messId })
       .populate('allMember', 'depositRich')
       .select('allMember depositRich');
 
     if (!mess) {
-      const error = new Error('mess not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'mess not found !',
+        },
+      };
     }
     const user = mess.allMember;
 
@@ -551,14 +619,17 @@ exports.addMarketCost = async (req, res, next) => {
     const type = req.body.type;
     const titel = req.body.titel;
     const amount = req.body.amount;
-    const purchasedate = new Date();
+    const purchasedate = req.body.purchasedate || new Date();
     const month = await Month.findOne({ managerName: req.userId }).select(
       'cost totalCost balance totalDeposit'
     );
     if (!month) {
-      const error = new Error('Month not found!');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Month not found!',
+        },
+      };
     }
     // add Big Market Cost
 
@@ -595,15 +666,18 @@ exports.updateMarketCost = async (req, res, next) => {
     const id = req.params.id;
     const titel = req.body.titel;
     const amount = req.body.amount;
-    const purchasedate = new Date();
+    const purchasedate = req.body.purchasedate || new Date();
 
     const month = await Month.findOne({ managerName: req.userId }).select(
       'cost totalCost totalDeposit balance'
     );
     if (!month) {
-      const error = new Error('Month not found!');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'Month not found!',
+        },
+      };
     }
 
     const cost = _.filter(
@@ -622,7 +696,7 @@ exports.updateMarketCost = async (req, res, next) => {
     await month.save();
 
     // send respose
-    res.status(201).json({ message: 'eidt cost.', cost });
+    res.status(201).json({ message: 'edit cost.', cost });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -640,9 +714,12 @@ exports.deleteMarketCost = async (req, res, next) => {
       'cost totalCost totalDeposit balance'
     );
     if (!month) {
-      const error = new Error('Month not found!');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Month not found!',
+        },
+      };
     }
 
     const cost = _.filter(
@@ -670,17 +747,22 @@ exports.deleteMarketCost = async (req, res, next) => {
 exports.getMarketCost = async (req, res, next) => {
   try {
     costTypeObject = req.query.cost;
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'You not join any Mess.',
+        },
+      };
     }
     // const query = req.query.cost.split(',');
     // const newarr = _.join(query, ' ');
 
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitel: activeDate }],
     }).select('cost');
 
     res.status(200).json({ month });
@@ -696,15 +778,20 @@ exports.getMarketCost = async (req, res, next) => {
 exports.getCost = async (req, res, next) => {
   try {
     const costId = req.params.id;
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'You not join any Mess.',
+        },
+      };
     }
 
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitel: activeDate }],
     }).select('cost');
 
     const cost = _.filter(
@@ -736,9 +823,12 @@ exports.addDailyBorderMeal = async (req, res, next) => {
     }).select('_id totalMeal');
 
     if (!month) {
-      const error = new Error('Now have not  active Month.');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Now have not  active Month.',
+        },
+      };
     }
 
     const monthId = month._id;
@@ -789,14 +879,19 @@ exports.addDailyBorderMeal = async (req, res, next) => {
 };
 exports.mealList = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'You not join any Mess.',
+        },
+      };
     }
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.userMessId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitel: activeDate }],
     }).select('_id');
     // some filter query
 
@@ -805,15 +900,18 @@ exports.mealList = async (req, res, next) => {
     const userId = req.query.userId;
     const userfilter = userId ? { userId: req.userId } : {};
     const meal = await Meal.find({
-      $and: [{ messId: req.userMessId }, { monthId: month._id }],
+      $and: [{ messId: messId }, { monthId: month._id }],
       //  ...dayfilter,
       ...userfilter,
     }).populate('userId', 'name');
 
     if (!meal) {
-      const error = new Error('This Month have a no meal aviabel!');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          meal: 'This Month have a no meal aviabel!',
+        },
+      };
     }
 
     //
@@ -838,9 +936,12 @@ exports.updateDailyMeal = async (req, res, next) => {
 
     const meal = await Meal.findById({ _id: id });
     if (!meal) {
-      const error = new Error('Meal not found !');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          meal: 'Meal not found !',
+        },
+      };
     }
 
     (meal.breakfast = breakfast),
@@ -927,7 +1028,7 @@ exports.getMonthCalculation = async (req, res, next) => {
 
 exports.test = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
+    if (!messId) {
       const error = new Error('You not join any Mess.');
       error.statusCode = 404;
       throw error;
@@ -953,7 +1054,7 @@ exports.test = async (req, res, next) => {
 ///  calculation cost
 
 const calculation = async (month, req) => {
-  const mess = await Mess.findById(req.userMessId).select(' totalBorder ');
+  const mess = await Mess.findById(req.messId).select(' totalBorder ');
   const cost = month.cost;
 
   const bigCost = _.filter(cost, { type: 'bigCost' });

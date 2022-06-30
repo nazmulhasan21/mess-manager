@@ -2,6 +2,7 @@ const Mess = require('../models/mass');
 const Month = require('../models/month');
 const User = require('../models/user');
 const moment = require('moment');
+const getUser = require('../utils/getUser');
 
 exports.createMess = async (req, res, next) => {
   //  console.log(req.body.messName);
@@ -13,9 +14,12 @@ exports.createMess = async (req, res, next) => {
     const user = await User.findById({ _id: userId });
 
     if (userRole !== 'manager') {
-      const error = new Error('This User not Mess manager');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          role: 'This User not Mess manager',
+        },
+      };
     }
 
     const oldMess = await Mess.findOne({
@@ -23,9 +27,12 @@ exports.createMess = async (req, res, next) => {
     });
     // console.log(oldMess);
     if (oldMess) {
-      const error = new Error('All ready exit your Mess');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          createMess: 'All ready exit your Mess',
+        },
+      };
     }
 
     const mess = new Mess({
@@ -35,7 +42,7 @@ exports.createMess = async (req, res, next) => {
       admin: req.userId,
     });
 
-    console.log(mess);
+    // console.log(mess);
     const createMess = await mess.save();
 
     const messId = createMess._id;
@@ -50,7 +57,7 @@ exports.createMess = async (req, res, next) => {
       managerName,
       allMember,
     });
-    console.log(month);
+    //  console.log(month);
     const createMonth = await month.save();
 
     const updateMess = await Mess.findById(messId);
@@ -74,20 +81,34 @@ exports.createMess = async (req, res, next) => {
 
 exports.getMess = async (req, res, next) => {
   try {
-    if (!req.userMessId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
-    const mess = await Mess.findById({ _id: req.userMessId })
+
+    const mess = await Mess.findById({ _id: messId })
       .populate('month')
       .populate('managerName', 'name')
       .populate('allMember', 'depositAmount');
+    if (!mess) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'Mess not found.',
+        },
+      };
+    }
 
     //
     res.status(201).json({ message: 'Get your mass.', mess });
   } catch (err) {
-    console.log(err);
+    //  console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -103,24 +124,39 @@ exports.addMember = async (req, res, next) => {
     // find user in existing user
     const user = await User.findOne({ email: email });
     if (!user) {
-      const error = new Error('No Member found with this email!');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'No Member found with this email!',
+        },
+      };
     }
     // console.log(user._id);
     // find this user is mess member on other mess
     const isMessMember = await Mess.findOne({ allMember: user._id.toString() });
-    console.log(isMessMember);
+
+    // console.log(isMessMember);
 
     if (isMessMember !== null) {
-      const error = new Error('This User is all ready add on other mess');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          isMessMember: 'This User is all ready add on other mess',
+        },
+      };
     }
 
     // add member is my mess
 
     const mess = await Mess.findById({ _id: req.messId });
+    if (!mess) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'mess not found.',
+        },
+      };
+    }
 
     mess.allMember.push(user);
     mess.totalBorder = mess.allMember.length;
@@ -128,7 +164,7 @@ exports.addMember = async (req, res, next) => {
     const result = await mess.save();
     await user.save();
 
-    console.log(mess.totalBorder);
+    //  console.log(mess.totalBorder);
     //   console.log(result);
 
     // send respose
@@ -136,7 +172,7 @@ exports.addMember = async (req, res, next) => {
       .status(201)
       .json({ message: 'Add member on your mess successful.', result });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -146,35 +182,45 @@ exports.addMember = async (req, res, next) => {
 
 exports.allMember = async (req, res, next) => {
   try {
-    if (!req.messId) {
-      res.status(404).json({
-        message: 'You do not join any Mess.',
-      });
-      return;
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          role: 'You not join any Mess.',
+        },
+      };
     }
 
     const mess = await Mess.findById({ _id: req.messId })
       .select('messName')
       .populate('allMember', 'name');
     if (!mess) {
-      const error = new Error('No Mess found');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'No Mess found',
+        },
+      };
     }
     if (!mess.allMember) {
-      const error = new Error('Border not found');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          Border: 'Border not found',
+        },
+      };
     }
     const allMember = mess.allMember;
-    console.log(allMember);
+    //  console.log(allMember);
 
     res.status(200).json({
       message: 'All member show on your mess successful.',
       allMember: allMember,
     });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }
@@ -190,9 +236,12 @@ exports.deleteMember = async (req, res, next) => {
     // find user in existing user
     const isMessMember = await Mess.findOne({ allMember: userId });
     if (!isMessMember) {
-      const error = new Error('This user no this mess member');
-      error.statusCode = 400;
-      throw error;
+      throw {
+        statusCode: 400,
+        errors: {
+          isMessMember: 'This user no this mess member',
+        },
+      };
     }
     // Delete member is my mess
     await isMessMember.allMember.pull(userId);
@@ -204,7 +253,7 @@ exports.deleteMember = async (req, res, next) => {
       .status(201)
       .json({ message: 'Delete member on your mess successful.', result });
   } catch (err) {
-    console.log(err);
+    //   console.log(err);
     if (!err.statusCode) {
       err.statusCode = 500;
     }

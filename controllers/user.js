@@ -18,10 +18,10 @@ exports.me = async (req, res, next) => {
         'month',
         'mealRate otherCostPerPerson'
       );
-      const activeMonth = mess.month.length - 1;
-      const month = mess.month[activeMonth];
+      //  const activeMonth = mess.month.length - 1;
+      // const month = mess.month[activeMonth];
 
-      res.status(200).json({ message: 'User foun successful.', user });
+      res.status(200).json({ message: 'User found successful.', user });
       return;
     } else {
       res.status(200).json({ message: 'User foun successful.', user });
@@ -40,9 +40,12 @@ exports.getUser = async (req, res, next) => {
 
     const user = await User.findById(_id, { password: 0 });
     if (!user) {
-      const error = new Error('No User found');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'No User found',
+        },
+      };
     }
     res.send(user);
   } catch (err) {
@@ -92,6 +95,14 @@ exports.updateInfo = async (req, res, next) => {
     const { name, institution, address } = req.body;
 
     const user = await User.findById({ _id: req.userId });
+    if (!user) {
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'No User found',
+        },
+      };
+    }
     user.name = name;
     user.institution = institution;
     user.address = address;
@@ -114,19 +125,24 @@ exports.updateAvater = async (req, res, next) => {
 
   try {
     if (!req.file) {
-      const error = new Error('No image provided');
-      error.statusCode = 422;
-      throw error;
+      throw {
+        statusCode: 422,
+        errors: {
+          file: 'No image provided',
+        },
+      };
     }
     const avater = req.file.destination + '/' + req.file.filename;
 
     const user = await User.findById({ _id: req.userId });
     if (!user) {
-      const error = new Error('Could not find user.');
-      error.statusCode = 404;
-      throw error;
+      throw {
+        statusCode: 404,
+        errors: {
+          user: 'Could not find user.',
+        },
+      };
     }
-
     // delete old avater
     if (
       avater !== user.avater &&
