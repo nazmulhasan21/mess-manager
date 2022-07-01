@@ -23,7 +23,7 @@ exports.createMess = async (req, res, next) => {
     }
 
     const oldMess = await Mess.findOne({
-      $or: [{ admin: userId }, { managerName: userId }],
+      $or: [{ admin: userId }, { managerId: userId }],
     });
     // console.log(oldMess);
     if (oldMess) {
@@ -38,7 +38,7 @@ exports.createMess = async (req, res, next) => {
     const mess = new Mess({
       messName,
       allMember: [req.userId],
-      managerName: req.userId,
+      managerId: req.userId,
       admin: req.userId,
     });
 
@@ -47,14 +47,14 @@ exports.createMess = async (req, res, next) => {
 
     const messId = createMess._id;
     const monthTitel = moment().format('MMMM YYYY');
-    const managerName = req.userId;
+    const managerId = req.userId;
     const allMember = [req.userId];
 
     const month = new Month({
       messId,
       messName,
       monthTitel,
-      managerName,
+      managerId,
       allMember,
     });
     //  console.log(month);

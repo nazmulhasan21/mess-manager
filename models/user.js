@@ -56,17 +56,10 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 0.0,
     },
-    depositRich: [
-      {
-        amount: { type: Number, default: 0 },
-        depositDate: { type: Date },
-      },
-    ],
     totalDepostiRich: {
       type: Number,
       default: 0.0,
     },
-    // dailyMeal: [dailyMealSchema],
     totalMeal: {
       type: Number,
       default: 0.0,

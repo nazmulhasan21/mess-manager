@@ -1,36 +1,32 @@
-
 const mongoose = require('mongoose');
 
-const messSchema = mongoose.Schema({
-    messName:{
-        type:String,
-        required:true
+const messSchema = mongoose.Schema(
+  {
+    messName: {
+      type: String,
+      required: true,
     },
-    allMember:[
-        {
-            type:mongoose.Schema.Types.ObjectId,
-            ref:'User'
-        }
+    allMember: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
     ],
-    totalBorder:{
-        type:Number,
-        default:1
-
+    totalBorder: {
+      type: Number,
+      default: 1,
     },
-    month:[
-        {type: mongoose.Schema.Types.ObjectId,
-            ref:'Month'
-        }
-    ],
-    managerName:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:'User'
+    month: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Month' }],
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
-    admin:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:'User'
-    }
-
-}, {timestamps:true});
+    admin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  },
+  { timestamps: true }
+);
 
 module.exports = mongoose.model('Mess', messSchema);

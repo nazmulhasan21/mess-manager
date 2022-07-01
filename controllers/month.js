@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Meal = require('../models/meal');
 const Month = require('../models/month');
 const Cost = require('../models/cost');
+const Rich = require('../models/rich');
 const Mess = require('../models/mass');
 const User = require('../models/user');
 
@@ -466,38 +467,43 @@ exports.updateMemberMoney = async (req, res, next) => {
 };
 // end money
 
-// Rich //
+// Rich ************ //
 exports.addMemberRich = async (req, res, next) => {
-  // console.log(req.body);
+  //console.log(req);
 
   try {
     const depositRich = req.body.depositRich;
     const userId = req.body.userId;
     const depositDate = req.body.depositDate || new Date();
-    // find user in existing user
-    const user = await User.findOne({ _id: userId });
-    if (!user) {
+
+    const month = await Month.findOne({
+      $and: [{ messId: req.messId }, { managerId: req.userId }],
+    });
+    if (!month) {
       throw {
         statusCode: 400,
         errors: {
-          user: 'No Member found with this email!',
+          month: 'month not found',
         },
       };
     }
 
-    const deposit = {
+    const rich = new Rich({
+      messId: req.messId,
+      monthId: month._id,
+      userId: userId,
       amount: depositRich,
       depositDate: depositDate,
-    };
-    user.depositRich.push(deposit);
-    user.totalDepostiRich = _.sumBy(user.depositRich, 'amount');
-    await user.save();
-    const month = await Month.findOne({ messId: req.messId });
-    month.totalRich += depositRich;
+    });
+
+    const data = await rich.save();
+
+    await richCalcultion(month, userId);
+
     await month.save();
 
     // send respose
-    res.status(201).json({ message: 'Add Rich.', user, month });
+    res.status(201).json({ message: 'Add Rich successfully.', data });
   } catch (err) {
     // console.log(err);
     if (!err.statusCode) {
@@ -509,30 +515,134 @@ exports.addMemberRich = async (req, res, next) => {
 
 exports.updateMemberRich = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
-    const id = req.params.id;
-    const amount = req.body.amount;
-    const depositDate = req.body.depositAmount;
-    const user = await User.findById({ _id: userId }).select('depositRich');
+    const _id = req.params.id;
+    const monthId = req.params.monthId;
+    const depositRich = req.body.depositRich;
+    const userId = req.body.userId;
+    const depositDate = req.body.depositDate || new Date();
+    const month = await Month.findById(monthId);
 
-    if (!user) {
+    if (!month) {
       throw {
         statusCode: 404,
         errors: {
-          user: 'user not found !',
+          month: 'month not found !',
         },
       };
     }
-    const depositRich = _.filter(user.depositRich, [
-      '_id',
-      new mongoose.Types.ObjectId(id),
-    ]);
-    depositRich[0].amount = amount;
-    depositRich[0].depositDate = depositDate;
-    await user.save();
+
+    const rich = await Rich.findById(_id);
+    if (!rich) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'Rich not found',
+        },
+      };
+    }
+    rich.amount = depositRich;
+    rich.depositDate = depositDate;
+    rich.userId = userId;
+    const data = await rich.save();
+
+    await richCalcultion(month, userId);
+
+    await month.save();
 
     //
-    res.status(201).json({ message: 'Get your mass.', depositRich });
+    res.status(200).json({ message: 'Update Rich successfully.', data });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.deleteMemberRich = async (req, res, next) => {
+  try {
+    const _id = req.params.id;
+    const monthId = req.params.monthId;
+
+    const month = await Month.findById(monthId);
+    // .select(
+    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    // );
+    if (!month) {
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Month not found!',
+        },
+      };
+    }
+
+    const rich = await Rich.findById(_id);
+    if (!rich) {
+      throw {
+        statusCode: 404,
+        errors: {
+          rich: 'all Rady deleted!',
+        },
+      };
+    }
+    let userId = rich.userId;
+    const data = await Rich.findByIdAndDelete(_id);
+
+    await richCalcultion(month, userId);
+
+    await month.save();
+
+    // send respose
+    res.status(201).json({ message: 'Delete rich  successfully..', data });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
+exports.getMemberRichList = async (req, res, next) => {
+  try {
+    const { messId } = await getUser(req.userId);
+
+    if (!messId) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'You not join any Mess.',
+        },
+      };
+    }
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [{ messId: messId }, { monthTitel: activeDate }],
+    });
+    if (!month) {
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Month not found!',
+        },
+      };
+    }
+
+    const rich = await Rich.find({
+      $and: [{ messId: messId }, { monthId: month._id }],
+    }).populate('userId', 'name');
+
+    if (!rich) {
+      throw {
+        statusCode: 404,
+        errors: {
+          rich: 'Rich not found',
+        },
+      };
+    }
+    res.status(201).json({ message: 'Get your mass.', rich });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -544,64 +654,44 @@ exports.updateMemberRich = async (req, res, next) => {
 
 exports.getMemberRich = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
-    const id = req.params.id;
-    const user = await User.findById({ _id: userId }).select('depositRich');
+    const _id = req.params.id;
+    const monthId = req.params.monthId;
 
-    if (!user) {
-      throw {
-        statusCode: 404,
-        errors: {
-          user: 'user not found !',
-        },
-      };
-    }
-    const depositRich = _.filter(user.depositRich, [
-      '_id',
-      new mongoose.Types.ObjectId(id),
-    ]);
-
-    const data = _.concat(depositRich, { userId: userId });
-
-    //
-    res.status(201).json({ message: 'Get your mass.', data });
-  } catch (err) {
-    console.log(err);
-    if (!err.statusCode) {
-      err.statusCode = 500;
-    }
-    next(err);
-  }
-};
-
-exports.listMemberRich = async (req, res, next) => {
-  try {
     const { messId } = await getUser(req.userId);
 
     if (!messId) {
       throw {
         statusCode: 404,
         errors: {
-          role: 'You not join any Mess.',
+          mess: 'You not join any Mess.',
         },
       };
     }
 
-    const mess = await Mess.findById({ _id: messId })
-      .populate('allMember', 'depositRich')
-      .select('allMember depositRich');
-
-    if (!mess) {
+    const month = await Month.findById(monthId);
+    // .select(
+    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    // );
+    if (!month) {
       throw {
         statusCode: 404,
         errors: {
-          mess: 'mess not found !',
+          month: 'Month not found!',
         },
       };
     }
-    const user = mess.allMember;
 
-    res.status(200).json({ message: 'Get your mass member Rich list.', user });
+    const data = await Rich.findById(_id);
+    if (!data) {
+      throw {
+        statusCode: 404,
+        errors: {
+          rich: 'Rice not found',
+        },
+      };
+    }
+
+    res.status(201).json({ message: 'Get your rich.', data });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -611,9 +701,9 @@ exports.listMemberRich = async (req, res, next) => {
   }
 };
 
-// end Rich
+// end Rich ***********
 
-// cost
+// cost ***********
 
 exports.addMarketCost = async (req, res, next) => {
   try {
@@ -626,11 +716,12 @@ exports.addMarketCost = async (req, res, next) => {
       $and: [
         { messId: req.messId },
         { monthTitel: activeDate },
-        { managerName: req.userId },
+        { managerId: req.userId },
       ],
-    }).select(
-      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
-    );
+    });
+    // .select(
+    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    // );
 
     if (!month) {
       throw {
@@ -653,7 +744,7 @@ exports.addMarketCost = async (req, res, next) => {
 
     await cost.save();
 
-    calculation(month, req);
+    await calculation(month, req);
 
     await month.save();
 
@@ -703,15 +794,14 @@ exports.updateMarketCost = async (req, res, next) => {
     }
     (cost.type = type), (cost.titel = titel), (cost.amount = amount);
     cost.purchasedate = purchasedate;
-    await cost.save();
+    const data = await cost.save();
 
-    calculation(month, req);
+    await calculation(month, req);
 
     await month.save();
-    const updateCost = cost[cost.length - 1];
 
     // send respose
-    res.status(201).json({ message: 'edit cost.', updateCost });
+    res.status(201).json({ message: 'edit cost succussful.', month, data });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -723,9 +813,9 @@ exports.updateMarketCost = async (req, res, next) => {
 
 exports.deleteMarketCost = async (req, res, next) => {
   try {
-    const id = req.params.id;
+    const _id = req.params.id;
 
-    const month = await Month.findOne({ managerName: req.userId }).select(
+    const month = await Month.findOne({ managerId: req.userId }).select(
       'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
     if (!month) {
@@ -737,13 +827,21 @@ exports.deleteMarketCost = async (req, res, next) => {
       };
     }
     const cost = await Cost.findByIdAndDelete(_id);
+    if (!cost) {
+      throw {
+        statusCode: 404,
+        errors: {
+          cost: 'Cost not found.',
+        },
+      };
+    }
 
-    calculation(month, req);
+    await calculation(month, req);
 
     await month.save();
 
     // send respose
-    res.status(201).json({ message: 'eidt cost.', cost });
+    res.status(201).json({ message: 'eidt cost.', month, cost });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -769,9 +867,26 @@ exports.getMarketCostList = async (req, res, next) => {
     const month = await Month.findOne({
       $and: [{ messId: messId }, { monthTitel: activeDate }],
     });
+    if (!month) {
+      throw {
+        statusCode: 404,
+        errors: {
+          month: 'Month not found.',
+        },
+      };
+    }
     const costlist = await Cost.find({
       $and: [{ messId: messId }, { monthId: month._id }],
     });
+
+    if (!costlist) {
+      throw {
+        statusCode: 404,
+        errors: {
+          costList: 'Cost not found.',
+        },
+      };
+    }
 
     // calculation(month, req);
 
@@ -811,7 +926,9 @@ exports.getCost = async (req, res, next) => {
   }
 };
 
-// end Cost
+// end Cost **********
+
+// meal
 
 exports.addDailyBorderMeal = async (req, res, next) => {
   try {
@@ -991,6 +1108,8 @@ exports.getDailyMeal = async (req, res, next) => {
   }
 };
 
+// meal end
+
 exports.getMonthCalculation = async (req, res, next) => {
   try {
     // const month = await Month.findOne({ _id: '62b6c580c2659da9b9145e63' });
@@ -1084,15 +1203,59 @@ const calculation = async (month, req) => {
   };
 
   const cost = handleCost(costSum);
+  const otherCost = cost.otherCost || 0;
+  const bigCost = cost.bigCost || 0;
+  const smallCost = cost.smallCost || 0;
 
-  month.totalotherCost = cost.otherCost;
-  month.totalMealCost = cost.bigCost + cost.smallCost;
-  month.mealRate = (month.totalMealCost / month.totalMeal || 0).toFixed(2);
-  month.totalCost = cost.bigCost + cost.smallCost + cost.otherCost;
+  month.totalotherCost = otherCost;
+  month.totalMealCost = bigCost + smallCost;
+  const mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
+  month.mealRate = mealRate || 0;
+  month.totalCost = bigCost + smallCost + otherCost;
 
   month.balance = month.totalDeposit - month.totalCost;
 
   month.otherCostPerPerson = (month.totalotherCost / mess.totalBorder).toFixed(
     2
   );
+  return month;
+};
+
+const richCalcultion = async (month, userId) => {
+  const user = await User.findById(userId).select('totalDepostiRich messId');
+
+  const richSum = await Rich.aggregate([
+    {
+      $match: {
+        $and: [
+          { messId: new mongoose.Types.ObjectId(month.messId) },
+          { monthId: new mongoose.Types.ObjectId(month._id) },
+          { userId: new mongoose.Types.ObjectId(userId) },
+        ],
+      },
+    },
+    { $group: { _id: '$month', total: { $sum: '$amount' } } },
+  ]);
+
+  const monthRichSum = await Rich.aggregate([
+    {
+      $match: {
+        $and: [
+          { messId: new mongoose.Types.ObjectId(month.messId) },
+          { monthId: new mongoose.Types.ObjectId(month._id) },
+        ],
+      },
+    },
+    { $group: { _id: '$month', total: { $sum: '$amount' } } },
+  ]);
+
+  //console.log(richSum);
+  const rich = richSum[0];
+  const monthRich = monthRichSum[0];
+
+  // console.log(monthRich?.total);
+  user.totalDepostiRich = rich?.total;
+  await user.save();
+  month.totalRich = monthRich?.total;
+  return month;
 };

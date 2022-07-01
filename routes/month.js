@@ -29,12 +29,19 @@ router.put(
 // rich //
 router.post('/memberRich', isAuth, isAdmin, monthController.addMemberRich);
 router.put(
-  '/memberRich/:userId/:id',
+  '/memberRich/:monthId/:id',
   isAuth,
   isAdmin,
   monthController.updateMemberRich
 );
-router.get('/memberRich/:userId/:id', isAuth, monthController.getMemberRich);
+router.delete(
+  '/memberRich/:monthId/:id',
+  isAuth,
+  isAdmin,
+  monthController.deleteMemberRich
+);
+router.get('/memberRich/:monthId/:id', isAuth, monthController.getMemberRich);
+router.get('/memberRich', isAuth, monthController.getMemberRichList);
 
 // Cost
 router.get('/marketCost', isAuth, monthController.getMarketCostList);
