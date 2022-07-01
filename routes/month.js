@@ -36,11 +36,12 @@ router.put(
 );
 router.get('/memberRich/:userId/:id', isAuth, monthController.getMemberRich);
 
-router.get('/marketCost', isAuth, monthController.getMarketCost);
+// Cost
+router.get('/marketCost', isAuth, monthController.getMarketCostList);
 router.get('/marketCost/:id', isAuth, monthController.getCost);
 router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
 router.put(
-  '/marketCost/:id',
+  '/marketCost/:monthId/:id',
   isAuth,
   isAdmin,
   monthController.updateMarketCost
@@ -51,6 +52,7 @@ router.delete(
   isAdmin,
   monthController.deleteMarketCost
 );
+// cost end
 
 router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
 

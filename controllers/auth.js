@@ -139,31 +139,18 @@ exports.login = async (req, res, next) => {
         },
       };
     }
-    let token;
-    if (user.messId) {
-      token = jwt.sign(
-        {
-          email: user.email,
-          role: user.role,
-          userId: user._id.toString(),
-          messId: user.messId.toString(),
-        },
-        process.env.PRIVATEKEY
-        //,
-        //  {expiresIn:'2h'}
-      );
-    } else {
-      token = jwt.sign(
-        {
-          email: user.email,
-          role: user.role,
-          userId: user._id.toString(),
-        },
-        process.env.PRIVATEKEY
-        //,
-        //  {expiresIn:'2h'}
-      );
-    }
+    // create token  use jwt
+    const token = jwt.sign(
+      {
+        email: user.email,
+        role: user.role,
+        userId: user._id.toString(),
+      },
+      process.env.PRIVATEKEY
+      //,
+      //  {expiresIn:'2h'}
+    );
+
     res.status(200).json({
       message: 'User login successfully',
       token: token,

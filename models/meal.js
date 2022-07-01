@@ -20,4 +20,4 @@ const dailyMealSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('meal', dailyMealSchema);
+module.exports = mongoose.model('Meal', dailyMealSchema);

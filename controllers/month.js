@@ -3,6 +3,7 @@ const _ = require('lodash');
 const mongoose = require('mongoose');
 const Meal = require('../models/meal');
 const Month = require('../models/month');
+const Cost = require('../models/cost');
 const Mess = require('../models/mass');
 const User = require('../models/user');
 
@@ -620,9 +621,17 @@ exports.addMarketCost = async (req, res, next) => {
     const titel = req.body.titel;
     const amount = req.body.amount;
     const purchasedate = req.body.purchasedate || new Date();
-    const month = await Month.findOne({ managerName: req.userId }).select(
-      'cost totalCost balance totalDeposit'
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [
+        { messId: req.messId },
+        { monthTitel: activeDate },
+        { managerName: req.userId },
+      ],
+    }).select(
+      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
+
     if (!month) {
       throw {
         statusCode: 404,
@@ -631,26 +640,28 @@ exports.addMarketCost = async (req, res, next) => {
         },
       };
     }
-    // add Big Market Cost
+    // add  Market Cost
 
-    const cost = {
+    const cost = new Cost({
+      messId: req.messId,
+      monthId: month._id,
       type: type,
       titel: titel,
       amount: amount,
       purchasedate: purchasedate,
-    };
+    });
 
-    month.cost.push(cost);
+    await cost.save();
 
     calculation(month, req);
 
     await month.save();
 
-    const length = month.cost.length - 1;
-    const recentCost = month.cost[length];
-
+    //  const length = month.cost.length - 1;
+    // const recentCost = month.cost[length];
+    //
     // send respose
-    res.status(201).json({ message: 'Add Cost successfull.', recentCost });
+    res.status(201).json({ message: 'Add Cost successfull.', cost });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -662,14 +673,15 @@ exports.addMarketCost = async (req, res, next) => {
 
 exports.updateMarketCost = async (req, res, next) => {
   try {
+    const monthId = req.params.monthId;
     const type = req.body.type;
-    const id = req.params.id;
+    const _id = req.params.id;
     const titel = req.body.titel;
     const amount = req.body.amount;
     const purchasedate = req.body.purchasedate || new Date();
 
-    const month = await Month.findOne({ managerName: req.userId }).select(
-      'cost totalCost totalDeposit balance'
+    const month = await Month.findOne({ _id: monthId }).select(
+      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
     if (!month) {
       throw {
@@ -680,23 +692,26 @@ exports.updateMarketCost = async (req, res, next) => {
       };
     }
 
-    const cost = _.filter(
-      month.cost,
-
-      ['_id', new mongoose.Types.ObjectId(id)]
-    );
-
-    (cost[0].type = type),
-      (cost[0].titel = titel),
-      (cost[0].amount = amount),
-      (cost[0].purchasedate = purchasedate);
+    const cost = await Cost.findById(_id);
+    if (!cost) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'Cost not found!',
+        },
+      };
+    }
+    (cost.type = type), (cost.titel = titel), (cost.amount = amount);
+    cost.purchasedate = purchasedate;
+    await cost.save();
 
     calculation(month, req);
 
     await month.save();
+    const updateCost = cost[cost.length - 1];
 
     // send respose
-    res.status(201).json({ message: 'edit cost.', cost });
+    res.status(201).json({ message: 'edit cost.', updateCost });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -711,7 +726,7 @@ exports.deleteMarketCost = async (req, res, next) => {
     const id = req.params.id;
 
     const month = await Month.findOne({ managerName: req.userId }).select(
-      'cost totalCost totalDeposit balance'
+      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
     if (!month) {
       throw {
@@ -721,13 +736,7 @@ exports.deleteMarketCost = async (req, res, next) => {
         },
       };
     }
-
-    const cost = _.filter(
-      month.cost,
-
-      ['_id', new mongoose.Types.ObjectId(id)]
-    );
-    month.cost.pull(cost[0]);
+    const cost = await Cost.findByIdAndDelete(_id);
 
     calculation(month, req);
 
@@ -744,9 +753,8 @@ exports.deleteMarketCost = async (req, res, next) => {
   }
 };
 
-exports.getMarketCost = async (req, res, next) => {
+exports.getMarketCostList = async (req, res, next) => {
   try {
-    costTypeObject = req.query.cost;
     const { messId } = await getUser(req.userId);
 
     if (!messId) {
@@ -757,15 +765,17 @@ exports.getMarketCost = async (req, res, next) => {
         },
       };
     }
-    // const query = req.query.cost.split(',');
-    // const newarr = _.join(query, ' ');
-
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
       $and: [{ messId: messId }, { monthTitel: activeDate }],
-    }).select('cost');
+    });
+    const costlist = await Cost.find({
+      $and: [{ messId: messId }, { monthId: month._id }],
+    });
 
-    res.status(200).json({ month });
+    // calculation(month, req);
+
+    res.status(200).json({ message: 'cost list', costlist });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -777,7 +787,7 @@ exports.getMarketCost = async (req, res, next) => {
 
 exports.getCost = async (req, res, next) => {
   try {
-    const costId = req.params.id;
+    const _id = req.params.id;
     const { messId } = await getUser(req.userId);
 
     if (!messId) {
@@ -789,18 +799,9 @@ exports.getCost = async (req, res, next) => {
       };
     }
 
-    const activeDate = moment().format('MMMM YYYY');
-    const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
-    }).select('cost');
+    const cost = await Cost.findById(_id);
 
-    const cost = _.filter(
-      month.cost,
-
-      ['_id', new mongoose.Types.ObjectId(costId)]
-    );
-
-    res.status(200).json(cost);
+    res.status(200).json({ message: 'cost found', cost });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -849,7 +850,14 @@ exports.addDailyBorderMeal = async (req, res, next) => {
         { $group: { _id: '$monthId', total: { $sum: '$total' } } },
       ]);
       const user = await User.findById({ _id: userId }).select('totalMeal');
-
+      if (!user) {
+        throw {
+          statusCode: 404,
+          errors: {
+            month: 'user not found.',
+          },
+        };
+      }
       //  console.log(month);
       user.totalMeal = meal[0]?.total || 0;
       await user.save();
@@ -1054,21 +1062,33 @@ exports.test = async (req, res, next) => {
 ///  calculation cost
 
 const calculation = async (month, req) => {
-  const mess = await Mess.findById(req.messId).select(' totalBorder ');
-  const cost = month.cost;
+  const mess = await Mess.findById(req.messId).select('totalBorder');
+  const costSum = await Cost.aggregate([
+    {
+      $match: {
+        $and: [
+          { messId: new mongoose.Types.ObjectId(req.messId) },
+          { monthId: new mongoose.Types.ObjectId(month._id) },
+        ],
+      },
+    },
+    { $group: { _id: '$type', total: { $sum: '$amount' } } },
+  ]);
 
-  const bigCost = _.filter(cost, { type: 'bigCost' });
-  const totalbigCost = _.sumBy(bigCost, 'amount');
+  const arrObj = {};
+  const handleCost = (costSum) => {
+    costSum.forEach((cost) => {
+      arrObj[cost._id] = cost.total;
+    });
+    return arrObj;
+  };
 
-  const smallCost = _.filter(cost, { type: 'smallCost' });
-  const totalsmallCost = _.sumBy(smallCost, 'amount');
+  const cost = handleCost(costSum);
 
-  const otherCost = _.filter(cost, { type: 'otherCost' });
-  month.totalotherCost = _.sumBy(otherCost, 'amount');
-
-  month.totalMealCost = totalbigCost + totalsmallCost;
-
-  month.totalCost = _.sumBy(month.cost, 'amount');
+  month.totalotherCost = cost.otherCost;
+  month.totalMealCost = cost.bigCost + cost.smallCost;
+  month.mealRate = (month.totalMealCost / month.totalMeal || 0).toFixed(2);
+  month.totalCost = cost.bigCost + cost.smallCost + cost.otherCost;
 
   month.balance = month.totalDeposit - month.totalCost;
 

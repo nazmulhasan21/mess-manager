@@ -63,78 +63,12 @@ const monthSchema = mongoose.Schema(
       type: Number,
       default: 0.0,
     },
-    totalotherCost: {
-      type: Number,
-      default: 0.0,
-    },
     otherCostPerPerson: {
       type: Number,
       default: 0.0,
     },
-
-    cost: [
-      {
-        type: {
-          type: String,
-          enum: ['bigCost', 'smallCost', 'otherCost'],
-        },
-        titel: {
-          type: String,
-        },
-        amount: {
-          type: Number,
-          default: 0,
-        },
-        purchasedate: {
-          type: Date,
-        },
-      },
-    ],
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model('Month', monthSchema);
-
-// bigCost: [
-//   {
-//     titel: {
-//       type: String,
-//     },
-//     amount: {
-//       type: Number,
-//       default: 0,
-//     },
-//     purchasedate: {
-//       type: Date,
-//     },
-//   },
-// ],
-// smallCost: [
-//   {
-//     titel: {
-//       type: String,
-//     },
-//     amount: {
-//       type: Number,
-//       default: 0,
-//     },
-//     purchasedate: {
-//       type: Date,
-//     },
-//   },
-// ],
-// otherCost: [
-//   {
-//     titel: {
-//       type: String,
-//     },
-//     amount: {
-//       type: Number,
-//       default: 0,
-//     },
-//     purchasedate: {
-//       type: Date,
-//     },
-//   },
-// ],
