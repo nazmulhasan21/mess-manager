@@ -14,8 +14,6 @@ const path = require('path');
 const fs = require('fs-extra');
 const data = require('../date.json');
 
-const getUser = require('../utils/getUser');
-
 // compile the hbs templete to pdf document
 
 const compile = async function (templeteName, data) {
@@ -90,17 +88,9 @@ exports.createMonth = async (req, res, next) => {
 
 exports.getMonth = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      const error = new Error('You not join any Mess.');
-      error.statusCode = 404;
-      throw error;
-    }
     const activeDate = moment().format('MMMM YYYY');
-
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: req.messId }, { monthTitel: activeDate }],
     });
 
     if (!month) {
@@ -125,9 +115,9 @@ exports.getMonth = async (req, res, next) => {
     ]);
 
     // let cost = month.cost;
+    month.totlaMeal = meal.length === 0 ? 1 : meal[0].total;
 
-    month.totalMeal = meal[0]?.total || 0;
-    month.mealRate = month.totalMealCost / month.totalMeal || 0;
+    month.mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
 
     // save in month database
     await month.save();
@@ -137,7 +127,6 @@ exports.getMonth = async (req, res, next) => {
 
     const userCalcultaion = async (userId) => {
       const user = await User.findById({ _id: userId });
-
       user.mealCost = (month.mealRate * user.totalMeal).toFixed(2);
       user.otherCost = month.otherCostPerPerson;
       user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
@@ -167,21 +156,10 @@ exports.getMonth = async (req, res, next) => {
 
 exports.getOldMonth = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          role: 'You not join any Mess.',
-        },
-      };
-    }
-
     const activeDate = moment().subtract(1, 'months');
     const oldMonth = activeDate.format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: oldMonth }],
+      $and: [{ messId: req.messId }, { monthTitel: oldMonth }],
     });
     if (!month) {
       throw {
@@ -205,16 +183,8 @@ exports.getOldMonth = async (req, res, next) => {
 
 exports.getAllMonth = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
+    const messId = req.messId;
 
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          role: 'You not join any Mess.',
-        },
-      };
-    }
     const messIdFilter = messId ? { messId } : {};
     const monthTitel = req.query.monthTitel || '';
     // const activeDate = moment().subtract(1, 'months');
@@ -366,17 +336,7 @@ exports.addMemberMoney = async (req, res, next) => {
 };
 exports.listMemberMoney = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          role: 'You not join any Mess.',
-        },
-      };
-    }
-
+    const messId = req.messId;
     const mess = await Mess.findById({ _id: messId })
       .populate('allMember', 'depositAmount')
       .select('allMember depositAmount');
@@ -607,16 +567,7 @@ exports.deleteMemberRich = async (req, res, next) => {
 
 exports.getMemberRichList = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          mess: 'You not join any Mess.',
-        },
-      };
-    }
+    const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
       $and: [{ messId: messId }, { monthTitel: activeDate }],
@@ -656,17 +607,6 @@ exports.getMemberRich = async (req, res, next) => {
   try {
     const _id = req.params.id;
     const monthId = req.params.monthId;
-
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          mess: 'You not join any Mess.',
-        },
-      };
-    }
 
     const month = await Month.findById(monthId);
     // .select(
@@ -752,7 +692,7 @@ exports.addMarketCost = async (req, res, next) => {
     // const recentCost = month.cost[length];
     //
     // send respose
-    res.status(201).json({ message: 'Add Cost successfull.', cost });
+    res.status(201).json({ message: 'Add Cost successfull.', cost, month });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -853,16 +793,7 @@ exports.deleteMarketCost = async (req, res, next) => {
 
 exports.getMarketCostList = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          mess: 'You not join any Mess.',
-        },
-      };
-    }
+    const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
       $and: [{ messId: messId }, { monthTitel: activeDate }],
@@ -903,16 +834,7 @@ exports.getMarketCostList = async (req, res, next) => {
 exports.getCost = async (req, res, next) => {
   try {
     const _id = req.params.id;
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          mess: 'You not join any Mess.',
-        },
-      };
-    }
+    const messId = req.messId;
 
     const cost = await Cost.findById(_id);
 
@@ -1209,8 +1131,10 @@ const calculation = async (month, req) => {
 
   month.totalotherCost = otherCost;
   month.totalMealCost = bigCost + smallCost;
-  const mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
-  month.mealRate = mealRate || 0;
+  // month.totalMeal = month.totalMeal === 0 ? 1 : month.totalMeal;
+
+  month.mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
+
   month.totalCost = bigCost + smallCost + otherCost;
 
   month.balance = month.totalDeposit - month.totalCost;

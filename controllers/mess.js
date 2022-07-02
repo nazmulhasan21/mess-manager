@@ -2,7 +2,6 @@ const Mess = require('../models/mass');
 const Month = require('../models/month');
 const User = require('../models/user');
 const moment = require('moment');
-const getUser = require('../utils/getUser');
 
 exports.createMess = async (req, res, next) => {
   //  console.log(req.body.messName);
@@ -81,9 +80,10 @@ exports.createMess = async (req, res, next) => {
 
 exports.getMess = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
+    const user = await getUser(req.userId);
+    console.log(user);
+    return;
+    if (!user.hasOwnProperty('messId')) {
       throw {
         statusCode: 404,
         errors: {
@@ -92,7 +92,7 @@ exports.getMess = async (req, res, next) => {
       };
     }
 
-    const mess = await Mess.findById({ _id: messId })
+    const mess = await Mess.findById({ _id: user?.messId })
       .populate('month')
       .populate('managerName', 'name')
       .populate('allMember', 'depositAmount');

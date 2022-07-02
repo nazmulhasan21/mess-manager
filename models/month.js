@@ -57,11 +57,11 @@ const monthSchema = mongoose.Schema(
     //  dailyMeal: [dailyMealSchema],
     totalMeal: {
       type: Number,
-      default: 0.0,
+      default: 1,
     },
     mealRate: {
       type: Number,
-      default: 0.0,
+      default: 1,
     },
     otherCostPerPerson: {
       type: Number,

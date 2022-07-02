@@ -3,18 +3,20 @@ const router = require('express').Router();
 // require middleware
 const isAuth = require('../middleware/is-auth');
 const isAdmin = require('../middleware/is-admin');
+const isMessId = require('../middleware/is-messId');
 
 // require controllers
 const monthController = require('../controllers/month');
 
 // create routers
+//// ******month *****
 router.post('/', isAuth, isAdmin, monthController.createMonth);
-router.get('/', isAuth, monthController.getMonth);
-router.get('/old', isAuth, monthController.getOldMonth);
-router.get('/all', isAuth, monthController.getAllMonth);
+router.get('/', isAuth, isMessId, monthController.getMonth);
+router.get('/old', isAuth, isMessId, monthController.getOldMonth);
+router.get('/all', isAuth, isMessId, monthController.getAllMonth);
 router.put('/manager', isAuth, isAdmin, monthController.changeManager);
 
-// money
+// money *****
 
 router.post('/memberMoney', isAuth, isAdmin, monthController.addMemberMoney);
 router.get('/memberMoney/list', isAuth, monthController.listMemberMoney);
@@ -40,12 +42,17 @@ router.delete(
   isAdmin,
   monthController.deleteMemberRich
 );
-router.get('/memberRich/:monthId/:id', isAuth, monthController.getMemberRich);
-router.get('/memberRich', isAuth, monthController.getMemberRichList);
+router.get(
+  '/memberRich/:monthId/:id',
+  isAuth,
+  isMessId,
+  monthController.getMemberRich
+);
+router.get('/memberRich', isAuth, isMessId, monthController.getMemberRichList);
 
 // Cost
-router.get('/marketCost', isAuth, monthController.getMarketCostList);
-router.get('/marketCost/:id', isAuth, monthController.getCost);
+router.get('/marketCost', isAuth, isMessId, monthController.getMarketCostList);
+router.get('/marketCost/:id', isAuth, isMessId, monthController.getCost);
 router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
 router.put(
   '/marketCost/:monthId/:id',
@@ -60,6 +67,8 @@ router.delete(
   monthController.deleteMarketCost
 );
 // cost end
+
+// meal
 
 router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
 

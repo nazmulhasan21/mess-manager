@@ -6,12 +6,13 @@ const isAuth = require('../middleware/is-auth');
 // require controllers
 const messController = require('../controllers/mess');
 const isAdmin = require('../middleware/is-admin');
+const isMessId = require('../middleware/is-messId');
 
 // create routers
 router.post('/', isAuth, messController.createMess);
-router.get('/', isAuth, messController.getMess);
+router.get('/', isAuth, isMessId, messController.getMess);
 router.put('/member', isAuth, isAdmin, messController.addMember);
-router.get('/member', isAuth, messController.allMember);
+router.get('/member', isAuth, isMessId, messController.allMember);
 router.delete('/member', isAuth, isAdmin, messController.deleteMember);
 
 module.exports = router;

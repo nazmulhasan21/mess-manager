@@ -62,7 +62,7 @@ const userSchema = mongoose.Schema(
     },
     totalMeal: {
       type: Number,
-      default: 0.0,
+      default: 1,
     },
     role: {
       type: String,
