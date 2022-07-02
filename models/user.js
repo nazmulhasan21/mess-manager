@@ -30,12 +30,6 @@ const userSchema = mongoose.Schema(
       type: String,
       default: '/images/mess_manager_profile_vector-01.png',
     },
-    depositAmount: [
-      {
-        amount: { type: Number, default: 0 },
-        depositDate: { type: Date },
-      },
-    ],
     totalDeposit: {
       type: Number,
       default: 0,
@@ -57,6 +51,10 @@ const userSchema = mongoose.Schema(
       default: 0.0,
     },
     totalDepostiRich: {
+      type: Number,
+      default: 0.0,
+    },
+    richBalance: {
       type: Number,
       default: 0.0,
     },

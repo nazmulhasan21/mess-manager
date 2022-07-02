@@ -9,7 +9,7 @@ module.exports = async (req, res, next) => {
     if (!messId) {
       return res.status(200).json({
         message: 'You not join any Mess.',
-        month: [],
+        month: {},
       });
     }
 

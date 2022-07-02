@@ -15,17 +15,28 @@ router.get('/', isAuth, isMessId, monthController.getMonth);
 router.get('/old', isAuth, isMessId, monthController.getOldMonth);
 router.get('/all', isAuth, isMessId, monthController.getAllMonth);
 router.put('/manager', isAuth, isAdmin, monthController.changeManager);
+// month ******
 
 // money *****
-
 router.post('/memberMoney', isAuth, isAdmin, monthController.addMemberMoney);
-router.get('/memberMoney/list', isAuth, monthController.listMemberMoney);
-router.get('/memberMoney/:userId/:id', isAuth, monthController.getMemberMoney);
+router.get('/memberMoney', isAuth, isMessId, monthController.listMemberMoney);
+router.get(
+  '/memberMoney/:id',
+  isAuth,
+  isMessId,
+  monthController.getMemberMoney
+);
 router.put(
-  '/memberMoney/:userId/:id',
+  '/memberMoney/:monthId/:id',
   isAuth,
   isAdmin,
   monthController.updateMemberMoney
+);
+router.delete(
+  '/memberMoney/:monthId/:id',
+  isAuth,
+  isAdmin,
+  monthController.deleteMemberMoney
 );
 
 // rich //
@@ -42,18 +53,14 @@ router.delete(
   isAdmin,
   monthController.deleteMemberRich
 );
-router.get(
-  '/memberRich/:monthId/:id',
-  isAuth,
-  isMessId,
-  monthController.getMemberRich
-);
+router.get('/memberRich/:id', isAuth, isMessId, monthController.getMemberRich);
 router.get('/memberRich', isAuth, isMessId, monthController.getMemberRichList);
 
 // Cost
+router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
 router.get('/marketCost', isAuth, isMessId, monthController.getMarketCostList);
 router.get('/marketCost/:id', isAuth, isMessId, monthController.getCost);
-router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
+
 router.put(
   '/marketCost/:monthId/:id',
   isAuth,
@@ -72,9 +79,9 @@ router.delete(
 
 router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
 
-router.get('/meallist', isAuth, monthController.mealList);
+router.get('/meallist', isAuth, isMessId, monthController.mealList);
 router.put('/dailyMeal/:id', isAuth, isAdmin, monthController.updateDailyMeal);
-router.get('/dailyMeal/:id', isAuth, isAdmin, monthController.getDailyMeal);
+router.get('/dailyMeal/:id', isAuth, isMessId, monthController.getDailyMeal);
 
 router.get('/monthCalculation', monthController.getMonthCalculation);
 

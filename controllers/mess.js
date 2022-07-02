@@ -68,7 +68,11 @@ exports.createMess = async (req, res, next) => {
     //
     res
       .status(201)
-      .json({ message: 'Create your mass Fully.', mess: result, createMonth });
+      .json({
+        message: 'Create your mass successful..',
+        mess: result,
+        createMonth,
+      });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -80,22 +84,12 @@ exports.createMess = async (req, res, next) => {
 
 exports.getMess = async (req, res, next) => {
   try {
-    const user = await getUser(req.userId);
-    console.log(user);
-    return;
-    if (!user.hasOwnProperty('messId')) {
-      throw {
-        statusCode: 404,
-        errors: {
-          role: 'You not join any Mess.',
-        },
-      };
-    }
+    const messId = req.messId;
 
-    const mess = await Mess.findById({ _id: user?.messId })
+    const mess = await Mess.findById({ _id: messId })
       .populate('month')
-      .populate('managerName', 'name')
-      .populate('allMember', 'depositAmount');
+      .populate('managerId', 'name')
+      .populate('allMember');
     if (!mess) {
       throw {
         statusCode: 404,
@@ -161,16 +155,14 @@ exports.addMember = async (req, res, next) => {
     mess.allMember.push(user);
     mess.totalBorder = mess.allMember.length;
     user.messId = mess._id;
-    const result = await mess.save();
+    await mess.save();
     await user.save();
 
     //  console.log(mess.totalBorder);
     //   console.log(result);
 
     // send respose
-    res
-      .status(201)
-      .json({ message: 'Add member on your mess successful.', result });
+    res.status(201).json({ message: 'Add member on your mess successful.' });
   } catch (err) {
     // console.log(err);
     if (!err.statusCode) {
@@ -182,18 +174,8 @@ exports.addMember = async (req, res, next) => {
 
 exports.allMember = async (req, res, next) => {
   try {
-    const { messId } = await getUser(req.userId);
-
-    if (!messId) {
-      throw {
-        statusCode: 404,
-        errors: {
-          role: 'You not join any Mess.',
-        },
-      };
-    }
-
-    const mess = await Mess.findById({ _id: req.messId })
+    const messId = req.messId;
+    const mess = await Mess.findById({ _id: messId })
       .select('messName')
       .populate('allMember', 'name');
     if (!mess) {
@@ -204,15 +186,15 @@ exports.allMember = async (req, res, next) => {
         },
       };
     }
-    if (!mess.allMember) {
-      throw {
-        statusCode: 404,
-        errors: {
-          Border: 'Border not found',
-        },
-      };
-    }
     const allMember = mess.allMember;
+
+    if (!allMember) {
+      return res.status(200).json({
+        message: 'No member found.',
+        allMember: {},
+      });
+    }
+
     //  console.log(allMember);
 
     res.status(200).json({

@@ -16,7 +16,6 @@ const userControllers = require('../controllers/user');
 // require middleware
 const isAuth = require('../middleware/is-auth');
 const { image } = require('../middleware/image_upload');
-const isAdmin = require('../middleware/is-admin');
 
 // create routers
 router.get('/me', isAuth, userControllers.me);
