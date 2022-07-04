@@ -10,10 +10,11 @@ const Mess = require('../models/mass');
 const User = require('../models/user');
 
 const Puppeteer = require('puppeteer');
-const hbs = require('handlebars');
-const path = require('path');
-const fs = require('fs-extra');
-const data = require('../date.json');
+// const hbs = require('handlebars');
+// const path = require('path');
+// const fs = require('fs-extra');
+// const data = require('../date.json');
+const createPDF = require('../utils/createPDF');
 
 // compile the hbs templete to pdf document
 
@@ -21,9 +22,77 @@ const compile = async function (templeteName, data) {
   const filePath = path.join(process.cwd(), 'templates', `${templeteName}.hbs`);
 
   // get the html
-
+  //console.log(data);
   const html = await fs.readFile(filePath, 'utf8');
-  return hbs.compile(html)(data);
+  return hbs.compile(html)(data.toObject());
+};
+
+exports.getMonthCalculation = async (req, res, next) => {
+  try {
+    const messId = '62c11ea530bfa0763e5f4c38';
+
+    var mess = await Mess.findById({ _id: messId })
+      .populate('month')
+      .populate('allMember');
+    if (!mess) {
+      throw {
+        statusCode: 404,
+        errors: {
+          mess: 'Mess not found.',
+        },
+      };
+    }
+    var month = mess.month[mess.month.length - 1];
+    const managerName = await User.findById(mess.managerId).select('name');
+    // const cash = await Cash.aggregate([
+    //   {
+    //     $match: {
+    //       $and: [
+    //         { messId: new mongoose.Types.ObjectId(messId) },
+    //         { monthId: new mongoose.Types.ObjectId(month._id) },
+    //       ],
+    //     },
+    //   },
+    //   { $group: { _id: ['$depositDate $userId'], total: { $sum: '$amount' } } },
+    // ]);
+    // console.log(cash);
+
+    const data = _.merge(mess, month, managerName);
+
+    const browser = await Puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto('https://youtube.com');
+    await page.screenshot({ path: 'screenshot.png' });
+    console.log('create screenshot');
+    await browser.close();
+
+    //  await createPDF('index', data);
+    // const browser = await Puppeteer.launch({
+    //   headless: true,
+    //   ignoreDefaultArgs: ['--disable-extensions'],
+    //   args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // });
+    // const page = await browser.newPage();
+    // const content = await compile('index', data);
+    // await page.setContent(content);
+    // await page.pdf({
+    //   path: `${mess.month[mess.month.length - 1].monthTitel}.pdf`,
+    //   format: 'A4',
+    //   printBackground: true,
+    // });
+
+    // console.log('Done create pdf');
+
+    // await browser.close();
+
+    res.status(201).json({ message: 'get month successfull.', data });
+  } catch (err) {
+    console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
 };
 
 exports.createMonth = async (req, res, next) => {
@@ -122,18 +191,19 @@ exports.getMonth = async (req, res, next) => {
     ]);
 
     // let cost = month.cost;
-    month.totlaMeal = meal.length === 0 ? 1 : meal[0].total;
-
+    month.totalMeal = meal.length === 0 ? 1 : meal[0].total;
     month.mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
+    month.richBalance = month.totalRich - month.totalMeal;
 
     // save in month database
     await month.save();
     const mess = await Mess.findById({ _id: month.messId })
-      .populate('allMember', ' _id')
-      .select('allMember _id');
+      .populate('allMember', ' _id totalMeal')
+      .select('allMember _id totalMeal');
 
     const userCalcultaion = async (userId) => {
       const user = await User.findById({ _id: userId });
+      user.richBalance = user.totalDepostiRich - user.totalMeal;
       user.mealCost = (month.mealRate * user.totalMeal).toFixed(2);
       user.otherCost = month.otherCostPerPerson;
       user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
@@ -310,7 +380,7 @@ exports.addMemberMoney = async (req, res, next) => {
     });
     if (!month) {
       throw {
-        statusCode: 400,
+        statusCode: 404,
         errors: {
           month: 'month not found',
         },
@@ -893,7 +963,7 @@ exports.getCost = async (req, res, next) => {
 
 // end Cost **********
 
-// meal
+// meal  *****
 
 exports.addDailyBorderMeal = async (req, res, next) => {
   try {
@@ -1033,13 +1103,16 @@ exports.updateDailyMeal = async (req, res, next) => {
         },
       };
     }
-
+    const month = await Month.findById(meal.monthId);
+    const userId = meal.userId;
     (meal.breakfast = breakfast),
       (meal.lunch = lunch),
       (meal.dinner = dinner),
       (meal.date = date),
       (meal.total = total);
     await meal.save();
+    await richCalcultion(month, userId);
+    await month.save();
 
     res.status(201).json({ message: 'update meal successfull.' });
   } catch (err) {
@@ -1067,51 +1140,6 @@ exports.getDailyMeal = async (req, res, next) => {
     }
 
     res.status(200).json({ message: 'get meal successfull.', meal });
-  } catch (err) {
-    console.log(err);
-    if (!err.statusCode) {
-      err.statusCode = 500;
-    }
-    next(err);
-  }
-};
-
-// meal end
-
-exports.getMonthCalculation = async (req, res, next) => {
-  try {
-    // const month = await Month.findOne({ _id: '62b6c580c2659da9b9145e63' });
-    // if (!month) {
-    //   const error = new Error('month not found !');
-    //   error.statusCode = 404;
-    //   throw error;
-    // }
-
-    const browser = await Puppeteer.launch({
-      headless: true,
-      ignoreDefaultArgs: ['--disable-extensions'],
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
-    const page = await browser.newPage();
-    // await page.goto('/month/monthCalculation');
-    const content = await compile('index', data);
-    await page.setContent(content);
-
-    // creat a pdf document
-
-    const resul = await page.pdf({
-      path: 'mynewpdf.pdf',
-      format: 'A4',
-      printBackground: true,
-    });
-
-    console.log('Done create pdf');
-
-    await browser.close();
-    console.log(resul);
-
-    res.status(201).json({ message: 'get month successfull.', resul });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -1192,7 +1220,9 @@ const calculation = async (month, req) => {
 };
 
 const richCalcultion = async (month, userId) => {
-  const user = await User.findById(userId).select('totalDepostiRich messId');
+  const user = await User.findById(userId).select(
+    'totalDepostiRich totalMeal richBalance messId'
+  );
 
   const richSum = await Rich.aggregate([
     {
@@ -1234,7 +1264,9 @@ const richCalcultion = async (month, userId) => {
 };
 
 const cashCalcultion = async (month, userId) => {
-  const user = await User.findById(userId).select('totalDepostiRich messId');
+  const user = await User.findById(userId).select(
+    ' totalDeposit totalCost balance messId'
+  );
 
   const cashSum = await Cash.aggregate([
     {
@@ -1264,9 +1296,8 @@ const cashCalcultion = async (month, userId) => {
   const cash = cashSum[0];
   const monthCash = monthCashSum[0];
 
-  user.totalDepostiAmount = cash?.total;
-
-  user.balance = user.totalDepost - user.totalCost;
+  user.totalDeposit = cash?.total;
+  user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
   await user.save();
   month.totalDeposit = monthCash?.total;
   return month;

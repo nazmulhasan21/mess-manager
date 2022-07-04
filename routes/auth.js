@@ -2,7 +2,7 @@
 
 // require validator
 
-const { userinputvalidat } = require('../middleware/inputvalidation');
+const { signupInputValidat } = require('../middleware/signupInputValidation');
 
 const router = require('express').Router();
 
@@ -12,7 +12,7 @@ const router = require('express').Router();
 const authControllers = require('../controllers/auth');
 
 // create routers
-router.post('/signup', userinputvalidat, authControllers.signup);
+router.post('/signup', signupInputValidat, authControllers.signup);
 router.post('/:id/verify/:token', authControllers.emailVerify);
 router.post('/login', authControllers.login);
 

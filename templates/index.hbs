@@ -13,27 +13,73 @@
 
   </head>
   <body>
-    <div class='container'>
-      <h1 class='text-center'>{{title}}</h1>
+    <div class=''>
+      <h1 class='text-center'>{{messName}}</h1>
+      <h5 class='text-center'>Manager Name:{{name}}</h5>
+
+      <h6 class='text-center'>Month Title:{{monthTitel}}</h6>
+      <h6 class='text-center'>Rich Balance:{{richBalance}}</h6>
+
       <table class='table'>
         <thead>
           <tr>
             <th>Name</th>
-            <th>age</th>
-            <th>Country</th>
+            <th>meal</th>
+            <th>mealCost</th>
+            <th>OtherCost</th>
+            <th>totalCost</th>
+            <th>Deposit</th>
+            <th>balance</th>
+            <th>richBalance</th>
           </tr>
         </thead>
         <tbody>
-          {{#each users as |user|}}
+          {{#each allMember as |member|}}
             <tr>
-              <td>{{user.name}}</td>
-              <td>{{user.age}}</td>
-              <td>{{user.country}}</td>
+              <td>{{member.name}}</td>
+              <td>{{member.totalMeal}}</td>
+              <td>{{member.mealCost}}</td>
+              <td>{{member.otherCost}}</td>
+              <td>{{member.totalCost}}</td>
+              <td>{{member.totalDeposit}}</td>
+              <td>{{member.balance}}</td>
+              <td>{{member.richBalance}}</td>
             </tr>
-
           {{/each}}
+
         </tbody>
       </table>
+
+      <h6 class='text-center'>Rich Table</h6>
+      {{!-- <table class='table'>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>meal</th>
+            <th>mealCost</th>
+            <th>OtherCost</th>
+            <th>totalCost</th>
+            <th>Deposit</th>
+            <th>balance</th>
+            <th>richBalance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each allMember as |member|}}
+            <tr>
+              <td>{{member.name}}</td>
+              <td>{{member.totalMeal}}</td>
+              <td>{{member.mealCost}}</td>
+              <td>{{member.otherCost}}</td>
+              <td>{{member.totalCost}}</td>
+              <td>{{member.totalDeposit}}</td>
+              <td>{{member.balance}}</td>
+              <td>{{member.richBalance}}</td>
+            </tr>
+          {{/each}}
+
+        </tbody>
+      </table> --}}
     </div>
   </body>
 </html>

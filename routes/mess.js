@@ -11,7 +11,7 @@ const isMessId = require('../middleware/is-messId');
 // create routers
 router.post('/', isAuth, messController.createMess);
 router.get('/', isAuth, isMessId, messController.getMess);
-router.put('/member', isAuth, isAdmin, messController.addMember);
+router.post('/member', isAuth, isAdmin, messController.addMember);
 router.get('/member', isAuth, isMessId, messController.allMember);
 router.delete('/member', isAuth, isAdmin, messController.deleteMember);
 

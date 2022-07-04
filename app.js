@@ -6,6 +6,15 @@ const app = express();
 const bodyParser = require('body-parser');
 const PUPPETEER_SKIP_DOWNLOAD = 'true';
 
+/// cloudinary
+
+const cloudinary = require('cloudinary').v2;
+cloudinary.config({
+  cloud_name: 'dvvfuzf5o',
+  api_key: '418419731134456',
+  api_secret: '5h5YuOhL02op04C4F5snQ0iLLSg',
+});
+
 //const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
@@ -44,7 +53,7 @@ const userRoutes = require('./routes/user');
 //         }
 // };
 
-//app.use(bodyParser.urlencoded({deprecate:true}));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 //app.use(multer({storage:fileStorage, fileFilter:fileFilter}).single('image'));
 

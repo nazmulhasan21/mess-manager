@@ -66,13 +66,11 @@ exports.createMess = async (req, res, next) => {
     await user.save();
 
     //
-    res
-      .status(201)
-      .json({
-        message: 'Create your mass successful..',
-        mess: result,
-        createMonth,
-      });
+    res.status(201).json({
+      message: 'Create your mass successful..',
+      mess: result,
+      createMonth,
+    });
   } catch (err) {
     console.log(err);
     if (!err.statusCode) {
@@ -100,7 +98,7 @@ exports.getMess = async (req, res, next) => {
     }
 
     //
-    res.status(201).json({ message: 'Get your mass.', mess });
+    res.status(200).json({ message: 'Get your mass.', mess });
   } catch (err) {
     //  console.log(err);
     if (!err.statusCode) {
