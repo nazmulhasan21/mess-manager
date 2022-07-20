@@ -62,6 +62,10 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 1,
     },
+    fixedMeal: {
+      type: Number,
+      default: 1,
+    },
     role: {
       type: String,
       default: 'border',

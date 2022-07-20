@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { costInputValidat } = require('../middleware/inputValidation');
 
 // require middleware
 const isAuth = require('../middleware/is-auth');
@@ -57,7 +58,13 @@ router.get('/memberRich/:id', isAuth, isMessId, monthController.getMemberRich);
 router.get('/memberRich', isAuth, isMessId, monthController.getMemberRichList);
 
 // Cost
-router.post('/marketCost', isAuth, isAdmin, monthController.addMarketCost);
+router.post(
+  '/marketCost',
+  isAuth,
+  isAdmin,
+  costInputValidat,
+  monthController.addMarketCost
+);
 router.get('/marketCost', isAuth, isMessId, monthController.getMarketCostList);
 router.get('/marketCost/:id', isAuth, isMessId, monthController.getCost);
 
@@ -82,6 +89,8 @@ router.post('/dailyMeal', isAuth, isAdmin, monthController.addDailyBorderMeal);
 router.get('/meallist', isAuth, isMessId, monthController.mealList);
 router.put('/dailyMeal/:id', isAuth, isAdmin, monthController.updateDailyMeal);
 router.get('/dailyMeal/:id', isAuth, isMessId, monthController.getDailyMeal);
+
+router.put('/fixedMeal', isAuth, isAdmin, monthController.addfixedMeal);
 
 router.get('/monthCalculation', monthController.getMonthCalculation);
 

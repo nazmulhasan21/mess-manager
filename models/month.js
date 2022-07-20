@@ -70,6 +70,14 @@ const monthSchema = mongoose.Schema(
       type: Number,
       default: 0.0,
     },
+    fixedMeal: {
+      type: Number,
+      default: 0,
+    },
+    totalFixedMeal: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

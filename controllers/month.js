@@ -1,4 +1,5 @@
 const moment = require('moment');
+const { validationResult } = require('express-validator');
 const _ = require('lodash');
 const mongoose = require('mongoose');
 const Meal = require('../models/meal');
@@ -9,7 +10,7 @@ const Cash = require('../models/cash');
 const Mess = require('../models/mass');
 const User = require('../models/user');
 
-const Puppeteer = require('puppeteer');
+//const Puppeteer = require('puppeteer');
 // const hbs = require('handlebars');
 // const path = require('path');
 // const fs = require('fs-extra');
@@ -59,31 +60,7 @@ exports.getMonthCalculation = async (req, res, next) => {
 
     const data = _.merge(mess, month, managerName);
 
-    const browser = await Puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto('https://youtube.com');
-    await page.screenshot({ path: 'screenshot.png' });
-    console.log('create screenshot');
-    await browser.close();
-
-    //  await createPDF('index', data);
-    // const browser = await Puppeteer.launch({
-    //   headless: true,
-    //   ignoreDefaultArgs: ['--disable-extensions'],
-    //   args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    // });
-    // const page = await browser.newPage();
-    // const content = await compile('index', data);
-    // await page.setContent(content);
-    // await page.pdf({
-    //   path: `${mess.month[mess.month.length - 1].monthTitel}.pdf`,
-    //   format: 'A4',
-    //   printBackground: true,
-    // });
-
-    // console.log('Done create pdf');
-
-    // await browser.close();
+    await createPDF('index', data);
 
     res.status(201).json({ message: 'get month successfull.', data });
   } catch (err) {
@@ -160,7 +137,40 @@ exports.createMonth = async (req, res, next) => {
     next(err);
   }
 };
+exports.addfixedMeal = async (req, res, next) => {
+  // console.log(req.body);
 
+  try {
+    const messId = req.messId;
+    const fixedMeal = req.body.fixedMeal;
+    // find manager month in your mess
+    const month = await Month.findOne({
+      $and: [{ messId: messId }, { managerId: req.userId }],
+    });
+    if (!month) {
+      throw {
+        statusCode: 400,
+        errors: {
+          Month: 'Month not found',
+        },
+      };
+    }
+    // add fixed Meal in your month
+    month.fixedMeal = fixedMeal;
+    const result = await month.save();
+
+    // send respose
+    res
+      .status(201)
+      .json({ message: 'Add fixed Meal in your month successful.', result });
+  } catch (err) {
+    //   console.log(err);
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
 exports.getMonth = async (req, res, next) => {
   try {
     const messId = req.messId;
@@ -190,21 +200,33 @@ exports.getMonth = async (req, res, next) => {
       { $group: { _id: '$monthId', total: { $sum: '$total' } } },
     ]);
 
-    // let cost = month.cost;
-    month.totalMeal = meal.length === 0 ? 1 : meal[0].total;
-    month.mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
-    month.richBalance = month.totalRich - month.totalMeal;
-
-    // save in month database
-    await month.save();
     const mess = await Mess.findById({ _id: month.messId })
       .populate('allMember', ' _id totalMeal')
       .select('allMember _id totalMeal');
+    const fixedMeal = month.fixedMeal;
 
-    const userCalcultaion = async (userId) => {
+    let totalFixedMeal = 0;
+    mess.allMember.forEach((member) => {
+      totalFixedMeal +=
+        member.totalMeal > fixedMeal ? member.totalMeal : fixedMeal;
+    });
+
+    // let cost = month.cost;
+    month.totalFixedMeal = totalFixedMeal;
+    month.totalMeal = meal.length === 0 ? 1 : meal[0].total;
+    month.mealRate = (month.totalMealCost / month.totalFixedMeal).toFixed(2);
+    month.richBalance = month.totalRich - month.totalMeal;
+    month.balance = month.totalDeposit - month.totalCost;
+
+    // save in month database
+    await month.save();
+
+    const userMealCalcultaion = async (userId) => {
       const user = await User.findById({ _id: userId });
       user.richBalance = user.totalDepostiRich - user.totalMeal;
-      user.mealCost = (month.mealRate * user.totalMeal).toFixed(2);
+      user.fixedMeal = user.totalMeal > fixedMeal ? user.totalMeal : fixedMeal;
+
+      user.mealCost = (month.mealRate * user.fixedMeal).toFixed(2);
       user.otherCost = month.otherCostPerPerson;
       user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
 
@@ -213,7 +235,7 @@ exports.getMonth = async (req, res, next) => {
       await user.save();
     };
     mess.allMember.map((user) => {
-      userCalcultaion(user._id);
+      userMealCalcultaion(user._id);
     });
 
     res.status(200).json({
@@ -752,6 +774,15 @@ exports.getMemberRich = async (req, res, next) => {
 
 exports.addMarketCost = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    // return;
+    if (!errors.isEmpty()) {
+      // console.log(errors);
+      const error = new Error('validation failed.');
+      error.statusCode = 422;
+      error.data = errors.array();
+      throw error;
+    }
     const type = req.body.type;
     const titel = req.body.titel;
     const amount = req.body.amount;
@@ -1207,7 +1238,7 @@ const calculation = async (month, req) => {
   month.totalMealCost = bigCost + smallCost;
   // month.totalMeal = month.totalMeal === 0 ? 1 : month.totalMeal;
 
-  month.mealRate = (month.totalMealCost / month.totalMeal).toFixed(2);
+  month.mealRate = (month.totalMealCost / month.totalFixedMeal).toFixed(2);
 
   month.totalCost = bigCost + smallCost + otherCost;
 

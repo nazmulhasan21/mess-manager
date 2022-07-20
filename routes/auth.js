@@ -2,7 +2,7 @@
 
 // require validator
 
-const { signupInputValidat } = require('../middleware/signupInputValidation');
+const { signupInputValidat } = require('../middleware/inputValidation');
 
 const router = require('express').Router();
 

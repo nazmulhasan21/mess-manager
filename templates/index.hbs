@@ -13,24 +13,26 @@
 
   </head>
   <body>
-    <div class=''>
+    <div class='container-fluid'>
       <h1 class='text-center'>{{messName}}</h1>
       <h5 class='text-center'>Manager Name:{{name}}</h5>
 
       <h6 class='text-center'>Month Title:{{monthTitel}}</h6>
       <h6 class='text-center'>Rich Balance:{{richBalance}}</h6>
+      <h6 class='text-center'>MealRate:{{mealRate}}</h6>
 
-      <table class='table'>
+      <table class='table table-bordered table-striped'>
         <thead>
           <tr>
             <th>Name</th>
             <th>meal</th>
+            <th>fixedMeal</th>
             <th>mealCost</th>
             <th>OtherCost</th>
             <th>totalCost</th>
             <th>Deposit</th>
             <th>balance</th>
-            <th>richBalance</th>
+            <th>rich</th>
           </tr>
         </thead>
         <tbody>
@@ -38,6 +40,7 @@
             <tr>
               <td>{{member.name}}</td>
               <td>{{member.totalMeal}}</td>
+              <td>{{member.fixedMeal}}</td>
               <td>{{member.mealCost}}</td>
               <td>{{member.otherCost}}</td>
               <td>{{member.totalCost}}</td>
@@ -46,8 +49,21 @@
               <td>{{member.richBalance}}</td>
             </tr>
           {{/each}}
-
         </tbody>
+        <thead>
+          <tr>
+            <th>Total Border = {{totalBorder}}</th>
+            <th>{{totalMeal}}</th>
+            <th>{{totalFixedMeal}}</th>
+            <th>{{totalMealCost}}</th>
+            <th>{{totalotherCost}}</th>
+            <th>{{totalCost}}</th>
+            <th>{{totalDeposit}}</th>
+            <th>{{balance}}</th>
+            <th>{{richBalance}}</th>
+
+          </tr>
+        </thead>
       </table>
 
       <h6 class='text-center'>Rich Table</h6>

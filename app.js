@@ -8,13 +8,6 @@ const PUPPETEER_SKIP_DOWNLOAD = 'true';
 
 /// cloudinary
 
-const cloudinary = require('cloudinary').v2;
-cloudinary.config({
-  cloud_name: 'dvvfuzf5o',
-  api_key: '418419731134456',
-  api_secret: '5h5YuOhL02op04C4F5snQ0iLLSg',
-});
-
 //const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
@@ -26,32 +19,6 @@ const authRoutes = require('./routes/auth');
 const messRoutes = require('./routes/mess');
 const monthRoutes = require('./routes/month');
 const userRoutes = require('./routes/user');
-
-// img uplod
-// const date = new Date();
-// const fileStorage = multer.diskStorage({
-
-//     destination:(req, file, cb) =>{
-//         cb(null, 'images');
-//     },
-//     filename:(req, file, cb) =>{
-//     cb(null,
-//         `${process.env.APP_NAME}-${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getTime()}-${file.originalname}`
-
-//         );
-//     }
-// });
-
-// const fileFilter = (req, file, cb) =>{
-//     if(file.mimetype === 'image/png' ||
-//         file.mimetype === 'image/jpg' ||
-//         file.mimetype === 'image/jpeg'
-//         ){
-//             cb(null, true)
-//         }else{
-//             cb(null, false);
-//         }
-// };
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -91,8 +58,8 @@ app.use((error, req, res, next) => {
   // const message = error.message;
   // const path = error.path;
   // const errData = { msg: message, param: path };
-
-  error.customErr = error.errors || handleError(error.data);
+  const errors = error.errors || handleError(error.data);
+  error.customErr = errors || error;
   // console.log('m', error);
   res.status(error.statusCode || 500).json({ error: error.customErr });
 });

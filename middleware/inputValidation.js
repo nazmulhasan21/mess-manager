@@ -48,3 +48,20 @@ exports.signupInputValidat = [
     .notEmpty()
     .withMessage('Plese select any one is your role.'),
 ];
+
+exports.costInputValidat = [
+  body('type')
+    .trim()
+    .isIn(['bigCost', 'smallCost', 'otherCost'])
+    .withMessage(
+      "Plese select right role In 'bigCost or smallCost or otherCost' own."
+    )
+    .notEmpty()
+    .withMessage('Plese select any one cost type.'),
+  body('titel')
+    .trim()
+    .matches()
+    .notEmpty()
+    .withMessage('Plese select any one cost type.'),
+  body('amount').trim(),
+];
