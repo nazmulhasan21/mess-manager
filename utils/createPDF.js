@@ -21,7 +21,7 @@ module.exports = async (templeteName, data) => {
   const content = await compile(templeteName, data);
   await page.setContent(content);
   await page.pdf({
-    path: `${data.month[data.month.length - 1].monthTitel}- ${data._id}.pdf`,
+    path: `${data.month[data.month.length - 1].monthTitle}- ${data._id}.pdf`,
     format: 'A4',
     printBackground: true,
   });

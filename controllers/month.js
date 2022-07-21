@@ -79,7 +79,7 @@ exports.createMonth = async (req, res, next) => {
     const activeDate = moment().format('MMMM YYYY');
     const messId = req.messId;
     const messName = req.messName;
-    const monthTitel = moment().format('MMMM YYYY');
+    const monthTitle = moment().format('MMMM YYYY');
     const managerId = req.userId;
     const allMember = [req.userId];
 
@@ -96,10 +96,10 @@ exports.createMonth = async (req, res, next) => {
     const activeMonth = await Month.findOne({
       $and: [
         { messId: messId },
-        { monthTitel: { $regex: activeDate, $options: 'i' } },
+        { monthTitle: { $regex: activeDate, $options: 'i' } },
       ],
     });
-    // const oldMonth = await Month.findOne({ $and: [{messId:messId }, { monthTitel: }]});
+    // const oldMonth = await Month.findOne({ $and: [{messId:messId }, { monthTitle: }]});
     if (activeMonth) {
       throw {
         statusCode: 400,
@@ -113,7 +113,7 @@ exports.createMonth = async (req, res, next) => {
     const month = new Month({
       messId,
       messName,
-      monthTitel,
+      monthTitle,
       managerId,
       allMember,
     });
@@ -176,7 +176,7 @@ exports.getMonth = async (req, res, next) => {
     const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
     });
 
     if (!month) {
@@ -258,7 +258,7 @@ exports.getOldMonth = async (req, res, next) => {
     const activeDate = moment().subtract(1, 'months');
     const oldMonth = activeDate.format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.messId }, { monthTitel: oldMonth }],
+      $and: [{ messId: req.messId }, { monthTitle: oldMonth }],
     });
     if (!month) {
       throw {
@@ -285,10 +285,10 @@ exports.getAllMonth = async (req, res, next) => {
     const messId = req.messId;
 
     const messIdFilter = messId ? { messId } : {};
-    const monthTitel = req.query.monthTitel || '';
+    const monthTitle = req.query.monthTitle || '';
     // const activeDate = moment().subtract(1, 'months');
-    const monthFilter = monthTitel
-      ? { monthTitel: { $regex: monthTitel, $options: 'i' } }
+    const monthFilter = monthTitle
+      ? { monthTitle: { $regex: monthTitle, $options: 'i' } }
       : {};
     // const oldMonth = activeDate.format('MMMM YYYY');
 
@@ -297,7 +297,7 @@ exports.getAllMonth = async (req, res, next) => {
       throw {
         statusCode: 404,
         errors: {
-          month: `Not have a ${monthTitel} this Month`,
+          month: `Not have a ${monthTitle} this Month`,
         },
       };
     }
@@ -438,7 +438,7 @@ exports.listMemberMoney = async (req, res, next) => {
     const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
     });
     if (!month) {
       throw {
@@ -539,7 +539,7 @@ exports.deleteMemberMoney = async (req, res, next) => {
 
     const month = await Month.findById(monthId);
     // .select(
-    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    //   'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     // );
     if (!month) {
       throw {
@@ -678,7 +678,7 @@ exports.deleteMemberRich = async (req, res, next) => {
 
     const month = await Month.findById(monthId);
     // .select(
-    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    //   'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     // );
     if (!month) {
       throw {
@@ -721,7 +721,7 @@ exports.getMemberRichList = async (req, res, next) => {
     const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
     });
     if (!month) {
       throw {
@@ -791,12 +791,12 @@ exports.addMarketCost = async (req, res, next) => {
     const month = await Month.findOne({
       $and: [
         { messId: req.messId },
-        { monthTitel: activeDate },
+        { monthTitle: activeDate },
         { managerId: req.userId },
       ],
     });
     // .select(
-    //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    //   'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     // );
 
     if (!month) {
@@ -848,7 +848,7 @@ exports.updateMarketCost = async (req, res, next) => {
     const purchasedate = req.body.purchasedate || new Date();
 
     const month = await Month.findOne({ _id: monthId }).select(
-      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+      'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
     if (!month) {
       throw {
@@ -892,7 +892,7 @@ exports.deleteMarketCost = async (req, res, next) => {
     const _id = req.params.id;
 
     const month = await Month.findOne({ managerId: req.userId }).select(
-      'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+      'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     );
     if (!month) {
       throw {
@@ -932,7 +932,7 @@ exports.getMarketCostList = async (req, res, next) => {
     const messId = req.messId;
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
     });
     if (!month) {
       throw {
@@ -969,7 +969,7 @@ exports.getCost = async (req, res, next) => {
     //  const monthId = req.params.id;
     // const month = await Month.findById(monthId);
     // // .select(
-    // //   'totalCost totalotherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
+    // //   'totalCost totalOtherCost totalMealCost totalMeal mealRate otherCostPerPerson balance totalDeposit'
     // // );
     // if (!month) {
     //   throw {
@@ -1003,7 +1003,7 @@ exports.addDailyBorderMeal = async (req, res, next) => {
 
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: req.messId }, { monthTitel: activeDate }],
+      $and: [{ messId: req.messId }, { monthTitle: activeDate }],
     }).select('_id totalMeal');
 
     if (!month) {
@@ -1082,7 +1082,7 @@ exports.mealList = async (req, res, next) => {
     }
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
-      $and: [{ messId: messId }, { monthTitel: activeDate }],
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
     }).select('_id');
     // some filter query
 
@@ -1234,7 +1234,7 @@ const calculation = async (month, req) => {
   const bigCost = cost.bigCost || 0;
   const smallCost = cost.smallCost || 0;
 
-  month.totalotherCost = otherCost;
+  month.totalOtherCost = otherCost;
   month.totalMealCost = bigCost + smallCost;
   // month.totalMeal = month.totalMeal === 0 ? 1 : month.totalMeal;
 
@@ -1244,7 +1244,7 @@ const calculation = async (month, req) => {
 
   month.balance = month.totalDeposit - month.totalCost;
 
-  month.otherCostPerPerson = (month.totalotherCost / mess.totalBorder).toFixed(
+  month.otherCostPerPerson = (month.totalOtherCost / mess.totalBorder).toFixed(
     2
   );
   return month;

@@ -45,14 +45,14 @@ exports.createMess = async (req, res, next) => {
     const createMess = await mess.save();
 
     const messId = createMess._id;
-    const monthTitel = moment().format('MMMM YYYY');
+    const monthTitle = moment().format('MMMM YYYY');
     const managerId = req.userId;
     const allMember = [req.userId];
 
     const month = new Month({
       messId,
       messName,
-      monthTitel,
+      monthTitle,
       managerId,
       allMember,
     });

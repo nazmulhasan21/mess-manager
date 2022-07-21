@@ -26,7 +26,7 @@ const monthSchema = mongoose.Schema(
       type: String,
       default: 'Bachelor_Point',
     },
-    monthTitel: {
+    monthTitle: {
       type: String,
     },
     // totalMonthBorder: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -38,7 +38,7 @@ const monthSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
-    totalotherCost: {
+    totalOtherCost: {
       type: Number,
       default: 0.0,
     },
