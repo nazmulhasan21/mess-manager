@@ -177,7 +177,7 @@ exports.getMonth = async (req, res, next) => {
     const activeDate = moment().format('MMMM YYYY');
     const month = await Month.findOne({
       $and: [{ messId: messId }, { monthTitle: activeDate }],
-    });
+    }).populate('managerId', 'phone email name');
 
     if (!month) {
       throw {
@@ -201,8 +201,14 @@ exports.getMonth = async (req, res, next) => {
     ]);
 
     const mess = await Mess.findById({ _id: month.messId })
-      .populate('allMember', ' _id totalMeal')
-      .select('allMember _id totalMeal');
+      .populate(
+        'allMember',
+        'email phone name totalDeposit dotalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+      )
+      .select(
+        'allMember email phone name totalDeposit dotalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+      );
+    //.select('allMember _id totalMeal');
     const fixedMeal = month.fixedMeal;
 
     let totalFixedMeal = 0;
@@ -237,10 +243,12 @@ exports.getMonth = async (req, res, next) => {
     mess.allMember.map((user) => {
       userMealCalcultaion(user._id);
     });
-
+    const memberInfo = mess.allMember;
+    const data = { month, memberInfo };
+    // console.log(month.allMember);
     res.status(200).json({
       message: 'getMonth successful..',
-      month,
+      data,
     });
 
     // }
