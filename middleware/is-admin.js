@@ -1,4 +1,4 @@
-const Mess = require('../models/mass');
+const Mess = require('../models/mess');
 
 module.exports = async (req, res, next) => {
   try {

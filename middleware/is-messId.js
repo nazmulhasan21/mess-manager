@@ -5,11 +5,13 @@ module.exports = async (req, res, next) => {
     const userId = req.userId;
     const user = await User.findById({ _id: userId });
     let messId = user.messId || false;
-
+    const data = {
+      month: {},
+    };
     if (!messId) {
       return res.status(200).json({
         message: 'You not join any Mess.',
-        month: {},
+        data,
       });
     }
 

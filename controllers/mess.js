@@ -1,6 +1,10 @@
-const Mess = require('../models/mass');
+const Mess = require('../models/mess');
 const Month = require('../models/month');
 const User = require('../models/user');
+const Meal = require('../models/meal');
+const Rich = require('../models/rich');
+const Cash = require('../models/cash');
+
 const moment = require('moment');
 
 exports.createMess = async (req, res, next) => {
@@ -175,7 +179,7 @@ exports.allMember = async (req, res, next) => {
     const messId = req.messId;
     const mess = await Mess.findById({ _id: messId })
       .select('messName')
-      .populate('allMember', 'name');
+      .populate('allMember', 'name email phone avater role messId');
     if (!mess) {
       throw {
         statusCode: 404,
@@ -223,15 +227,31 @@ exports.deleteMember = async (req, res, next) => {
         },
       };
     }
+    const user = await User.findById(userId).select('role name');
+    if (user.role === 'manager') {
+      throw {
+        statusCode: 400,
+        errors: {
+          isManager: 'This user is mess manager',
+        },
+      };
+    }
+
+    console.log('border');
+    return;
     // Delete member is my mess
     await isMessMember.allMember.pull(userId);
     isMessMember.totalBorder = isMessMember.allMember.length;
     const result = await isMessMember.save();
+    await Meal.deleteMany({ userId: userId });
+    await Rich.deleteMany({ userId: userId });
+    await Cash.deleteMany({ userId: userId });
 
     // send respose
-    res
-      .status(201)
-      .json({ message: 'Delete member on your mess successful.', result });
+    res.status(201).json({
+      message: 'Delete member on your mess successful.',
+      result: result,
+    });
   } catch (err) {
     //   console.log(err);
     if (!err.statusCode) {

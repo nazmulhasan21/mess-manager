@@ -92,7 +92,12 @@ router.get('/dailyMeal/:id', isAuth, isMessId, monthController.getDailyMeal);
 
 router.put('/fixedMeal', isAuth, isAdmin, monthController.addfixedMeal);
 
-router.get('/monthCalculation', monthController.getMonthCalculation);
+router.get(
+  '/monthCalculation',
+  isAuth,
+  isMessId,
+  monthController.getMonthCalculation
+);
 
 router.get('/test', isAuth, isAdmin, monthController.test);
 

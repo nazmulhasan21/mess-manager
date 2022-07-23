@@ -1,13 +1,20 @@
 const moment = require('moment');
 const { validationResult } = require('express-validator');
 const _ = require('lodash');
+const {
+  cashCalcultion,
+  richCalcultion,
+  userMealCalcultaion,
+  calculation,
+} = require('../utils/calculation');
+
 const mongoose = require('mongoose');
 const Meal = require('../models/meal');
 const Month = require('../models/month');
 const Cost = require('../models/cost');
 const Rich = require('../models/rich');
 const Cash = require('../models/cash');
-const Mess = require('../models/mass');
+const Mess = require('../models/mess');
 const User = require('../models/user');
 
 //const Puppeteer = require('puppeteer');
@@ -30,36 +37,39 @@ const compile = async function (templeteName, data) {
 
 exports.getMonthCalculation = async (req, res, next) => {
   try {
-    const messId = '62c11ea530bfa0763e5f4c38';
+    const messId = req.messId;
+    const activeDate = moment().format('MMMM YYYY');
+    const month = await Month.findOne({
+      $and: [{ messId: messId }, { monthTitle: activeDate }],
+    }).populate('managerId', 'phone email name');
 
-    var mess = await Mess.findById({ _id: messId })
-      .populate('month')
-      .populate('allMember');
-    if (!mess) {
+    if (!month) {
       throw {
         statusCode: 404,
         errors: {
-          mess: 'Mess not found.',
+          month: 'You have not a active month in this movement.',
         },
       };
     }
-    var month = mess.month[mess.month.length - 1];
-    const managerName = await User.findById(mess.managerId).select('name');
-    // const cash = await Cash.aggregate([
-    //   {
-    //     $match: {
-    //       $and: [
-    //         { messId: new mongoose.Types.ObjectId(messId) },
-    //         { monthId: new mongoose.Types.ObjectId(month._id) },
-    //       ],
-    //     },
-    //   },
-    //   { $group: { _id: ['$depositDate $userId'], total: { $sum: '$amount' } } },
-    // ]);
-    // console.log(cash);
 
-    const data = _.merge(mess, month, managerName);
+    const mess = await Mess.findById({ _id: month.messId })
+      .populate(
+        'allMember',
+        'email phone name totalDeposit totalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+      )
+      .select(
+        'allMember email phone name totalDeposit totalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+      );
 
+    const meal = await Meal.find({
+      $and: [{ messId: messId }, { monthId: month._id }],
+    });
+    // console.log(meal);
+    const data1 = _.merge(mess, meal);
+    console.log(meal);
+    const data = _.merge(data1, month);
+    // console.log(data);
+    return;
     await createPDF('index', data);
 
     res.status(201).json({ message: 'get month successfull.', data });
@@ -203,45 +213,55 @@ exports.getMonth = async (req, res, next) => {
     const mess = await Mess.findById({ _id: month.messId })
       .populate(
         'allMember',
-        'email phone name totalDeposit dotalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+        'email phone name totalDeposit totalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
       )
       .select(
-        'allMember email phone name totalDeposit dotalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
+        'allMember email phone name totalDeposit totalCost balance mealCost otherCost totalDepostiRich richBalance totalMeal fixedMeal '
       );
     //.select('allMember _id totalMeal');
     const fixedMeal = month.fixedMeal;
 
     let totalFixedMeal = 0;
+    let totalDeposit = 0;
+    let totalRich = 0;
     mess.allMember.forEach((member) => {
       totalFixedMeal +=
         member.totalMeal > fixedMeal ? member.totalMeal : fixedMeal;
+      totalDeposit += member.totalDeposit;
+      totalRich += member.totalDepostiRich;
     });
 
     // let cost = month.cost;
     month.totalFixedMeal = totalFixedMeal;
+    month.totalDeposit = totalDeposit;
+    month.totalRich = totalRich;
+
     month.totalMeal = meal.length === 0 ? 1 : meal[0].total;
     month.mealRate = (month.totalMealCost / month.totalFixedMeal).toFixed(2);
     month.richBalance = month.totalRich - month.totalMeal;
     month.balance = month.totalDeposit - month.totalCost;
+    month.otherCostPerPerson = (
+      month.totalOtherCost / mess.allMember.length
+    ).toFixed(2);
 
     // save in month database
     await month.save();
 
-    const userMealCalcultaion = async (userId) => {
-      const user = await User.findById({ _id: userId });
-      user.richBalance = user.totalDepostiRich - user.totalMeal;
-      user.fixedMeal = user.totalMeal > fixedMeal ? user.totalMeal : fixedMeal;
+    // const userMealCalcultaion = async (userId) => {
+    //   const user = await User.findById({ _id: userId });
+    //   user.richBalance = user.totalDepostiRich - user.totalMeal;
+    //   user.fixedMeal = user.totalMeal > fixedMeal ? user.totalMeal : fixedMeal;
 
-      user.mealCost = (month.mealRate * user.fixedMeal).toFixed(2);
-      user.otherCost = month.otherCostPerPerson;
-      user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
+    //   user.mealCost = (month.mealRate * user.fixedMeal).toFixed(2);
+    //   user.otherCost = month.otherCostPerPerson;
+    //   user.totalCost = (user.mealCost + user.otherCost).toFixed(2);
 
-      user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
+    //   user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
 
-      await user.save();
-    };
+    //   await user.save();
+    // };
     mess.allMember.map((user) => {
-      userMealCalcultaion(user._id);
+      userMealCalcultaion(month, user._id);
     });
     const memberInfo = mess.allMember;
     const data = { month, memberInfo };
@@ -1215,129 +1235,129 @@ exports.test = async (req, res, next) => {
 
 ///  calculation cost
 
-const calculation = async (month, req) => {
-  const mess = await Mess.findById(req.messId).select('totalBorder');
-  const costSum = await Cost.aggregate([
-    {
-      $match: {
-        $and: [
-          { messId: new mongoose.Types.ObjectId(req.messId) },
-          { monthId: new mongoose.Types.ObjectId(month._id) },
-        ],
-      },
-    },
-    { $group: { _id: '$type', total: { $sum: '$amount' } } },
-  ]);
+// const calculation = async (month, req) => {
+//   const mess = await Mess.findById(req.messId).select('totalBorder');
+//   const costSum = await Cost.aggregate([
+//     {
+//       $match: {
+//         $and: [
+//           { messId: new mongoose.Types.ObjectId(req.messId) },
+//           { monthId: new mongoose.Types.ObjectId(month._id) },
+//         ],
+//       },
+//     },
+//     { $group: { _id: '$type', total: { $sum: '$amount' } } },
+//   ]);
 
-  const arrObj = {};
-  const handleCost = (costSum) => {
-    costSum.forEach((cost) => {
-      arrObj[cost._id] = cost.total;
-    });
-    return arrObj;
-  };
+//   const arrObj = {};
+//   const handleCost = (costSum) => {
+//     costSum.forEach((cost) => {
+//       arrObj[cost._id] = cost.total;
+//     });
+//     return arrObj;
+//   };
 
-  const cost = handleCost(costSum);
-  const otherCost = cost.otherCost || 0;
-  const bigCost = cost.bigCost || 0;
-  const smallCost = cost.smallCost || 0;
+//   const cost = handleCost(costSum);
+//   const otherCost = cost.otherCost || 0;
+//   const bigCost = cost.bigCost || 0;
+//   const smallCost = cost.smallCost || 0;
 
-  month.totalOtherCost = otherCost;
-  month.totalMealCost = bigCost + smallCost;
-  // month.totalMeal = month.totalMeal === 0 ? 1 : month.totalMeal;
+//   month.totalOtherCost = otherCost;
+//   month.totalMealCost = bigCost + smallCost;
+//   // month.totalMeal = month.totalMeal === 0 ? 1 : month.totalMeal;
 
-  month.mealRate = (month.totalMealCost / month.totalFixedMeal).toFixed(2);
+//   month.mealRate = (month.totalMealCost / month.totalFixedMeal).toFixed(2);
 
-  month.totalCost = bigCost + smallCost + otherCost;
+//   month.totalCost = bigCost + smallCost + otherCost;
 
-  month.balance = month.totalDeposit - month.totalCost;
+//   month.balance = month.totalDeposit - month.totalCost;
 
-  month.otherCostPerPerson = (month.totalOtherCost / mess.totalBorder).toFixed(
-    2
-  );
-  return month;
-};
+//   month.otherCostPerPerson = (month.totalOtherCost / mess.totalBorder).toFixed(
+//     2
+//   );
+//   return month;
+// };
 
-const richCalcultion = async (month, userId) => {
-  const user = await User.findById(userId).select(
-    'totalDepostiRich totalMeal richBalance messId'
-  );
+// const richCalcultion = async (month, userId) => {
+//   const user = await User.findById(userId).select(
+//     'totalDepostiRich totalMeal richBalance messId'
+//   );
 
-  const richSum = await Rich.aggregate([
-    {
-      $match: {
-        $and: [
-          { messId: new mongoose.Types.ObjectId(month.messId) },
-          { monthId: new mongoose.Types.ObjectId(month._id) },
-          { userId: new mongoose.Types.ObjectId(userId) },
-        ],
-      },
-    },
-    { $group: { _id: '$month', total: { $sum: '$amount' } } },
-  ]);
+//   const richSum = await Rich.aggregate([
+//     {
+//       $match: {
+//         $and: [
+//           { messId: new mongoose.Types.ObjectId(month.messId) },
+//           { monthId: new mongoose.Types.ObjectId(month._id) },
+//           { userId: new mongoose.Types.ObjectId(userId) },
+//         ],
+//       },
+//     },
+//     { $group: { _id: '$month', total: { $sum: '$amount' } } },
+//   ]);
 
-  const monthRichSum = await Rich.aggregate([
-    {
-      $match: {
-        $and: [
-          { messId: new mongoose.Types.ObjectId(month.messId) },
-          { monthId: new mongoose.Types.ObjectId(month._id) },
-        ],
-      },
-    },
-    { $group: { _id: '$month', total: { $sum: '$amount' } } },
-  ]);
+//   const monthRichSum = await Rich.aggregate([
+//     {
+//       $match: {
+//         $and: [
+//           { messId: new mongoose.Types.ObjectId(month.messId) },
+//           { monthId: new mongoose.Types.ObjectId(month._id) },
+//         ],
+//       },
+//     },
+//     { $group: { _id: '$month', total: { $sum: '$amount' } } },
+//   ]);
 
-  //console.log(richSum);
-  const rich = richSum[0];
-  const monthRich = monthRichSum[0];
+//   //console.log(richSum);
+//   const rich = richSum[0];
+//   const monthRich = monthRichSum[0];
 
-  // console.log(monthRich?.total);
-  user.totalDepostiRich = rich?.total;
+//   // console.log(monthRich?.total);
+//   user.totalDepostiRich = rich?.total;
 
-  user.richBalance = user.totalDepostiRich - user.totalMeal;
-  await user.save();
-  month.totalRich = monthRich?.total;
-  month.richBalance = month.totalRich - month.totalMeal;
-  return month;
-};
+//   user.richBalance = user.totalDepostiRich - user.totalMeal;
+//   await user.save();
+//   month.totalRich = monthRich?.total;
+//   month.richBalance = month.totalRich - month.totalMeal;
+//   return month;
+// };
 
-const cashCalcultion = async (month, userId) => {
-  const user = await User.findById(userId).select(
-    ' totalDeposit totalCost balance messId'
-  );
+// const cashCalcultion = async (month, userId) => {
+//   const user = await User.findById(userId).select(
+//     ' totalDeposit totalCost balance messId'
+//   );
 
-  const cashSum = await Cash.aggregate([
-    {
-      $match: {
-        $and: [
-          { messId: new mongoose.Types.ObjectId(month.messId) },
-          { monthId: new mongoose.Types.ObjectId(month._id) },
-          { userId: new mongoose.Types.ObjectId(userId) },
-        ],
-      },
-    },
-    { $group: { _id: '$month', total: { $sum: '$amount' } } },
-  ]);
+//   const cashSum = await Cash.aggregate([
+//     {
+//       $match: {
+//         $and: [
+//           { messId: new mongoose.Types.ObjectId(month.messId) },
+//           { monthId: new mongoose.Types.ObjectId(month._id) },
+//           { userId: new mongoose.Types.ObjectId(userId) },
+//         ],
+//       },
+//     },
+//     { $group: { _id: '$month', total: { $sum: '$amount' } } },
+//   ]);
 
-  const monthCashSum = await Cash.aggregate([
-    {
-      $match: {
-        $and: [
-          { messId: new mongoose.Types.ObjectId(month.messId) },
-          { monthId: new mongoose.Types.ObjectId(month._id) },
-        ],
-      },
-    },
-    { $group: { _id: '$month', total: { $sum: '$amount' } } },
-  ]);
+//   const monthCashSum = await Cash.aggregate([
+//     {
+//       $match: {
+//         $and: [
+//           { messId: new mongoose.Types.ObjectId(month.messId) },
+//           { monthId: new mongoose.Types.ObjectId(month._id) },
+//         ],
+//       },
+//     },
+//     { $group: { _id: '$month', total: { $sum: '$amount' } } },
+//   ]);
 
-  const cash = cashSum[0];
-  const monthCash = monthCashSum[0];
+//   const cash = cashSum[0];
+//   const monthCash = monthCashSum[0];
 
-  user.totalDeposit = cash?.total;
-  user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
-  await user.save();
-  month.totalDeposit = monthCash?.total;
-  return month;
-};
+//   user.totalDeposit = cash?.total;
+//   user.balance = (user.totalDeposit - user.totalCost).toFixed(2);
+//   await user.save();
+//   month.totalDeposit = monthCash?.total;
+//   return month;
+// };
