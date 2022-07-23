@@ -236,7 +236,19 @@ exports.deleteMember = async (req, res, next) => {
         },
       };
     }
+    // delete user on month data
 
+    user.totalDeposit = 0;
+    user.totalCost = 0;
+    user.balance = 0;
+    user.mealCost = 0;
+    user.otherCost = 0;
+    user.totalDepostiRich = 0;
+    user.richBalance = 0;
+    user.totalMeal = 1;
+    user.fixedMeal = 1;
+    delete user.messId;
+    await user.save();
     // Delete member is my mess
     await isMessMember.allMember.pull(userId);
     isMessMember.totalBorder = isMessMember.allMember.length;
