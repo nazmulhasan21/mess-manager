@@ -237,8 +237,6 @@ exports.deleteMember = async (req, res, next) => {
       };
     }
 
-    console.log('border');
-    return;
     // Delete member is my mess
     await isMessMember.allMember.pull(userId);
     isMessMember.totalBorder = isMessMember.allMember.length;
